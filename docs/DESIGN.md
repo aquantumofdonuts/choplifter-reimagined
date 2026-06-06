@@ -367,94 +367,153 @@ On touchscreen, the HUD shifts to avoid overlap with virtual controls:
 - Shows: Resume, Restart Sortie, Quit to Title, Settings
 - Settings accessible during pause (volume, controls, visual mode)
 
-### 10.4 Title Screen
+### 10.4 Retro Title Sequence
 
-Faithful to original sequence:
+Plays only when launching **Retro mode** from the Main Menu (`RetroTitle.tscn`). Not shown in Modern or Hi-Res modes.
+
 1. "Broderbund Presents" animation
 2. Choplifter logo slides in from both sides (crossed, then separated)
 3. "Your Mission: Rescue Hostages" card
-4. Demo mode auto-play (attracts new players)
-5. Press any button → start game
+4. Demo mode auto-play (attract loop — any input interrupts and returns to Main Menu)
+5. Press any button → First Sortie banner
+
+The Main Menu is the universal entry point; this sequence is Retro-mode flavour, not a gate.
 
 ---
 
 ## 11. Game States & Flow
 
-### 11.1 State Diagram
+### 11.1 Architecture Overview
+
+The **Main Menu is the permanent hub.** Every exit path from gameplay — death, victory, quit — returns here. The menu is always rendered in modern hi-res style regardless of which game mode is active or selected.
+
+The Apple II faithful title sequence (Broderbund card, logo animation, demo attract) belongs *to Retro mode* and plays only when that mode is launched, not at the meta level.
 
 ```
 BOOT
-  └─▶ TITLE_SEQUENCE
-        ├─▶ (any button) ────▶ NEW_GAME
-        └─▶ (attract timer) ─▶ DEMO_MODE ──▶ TITLE_SEQUENCE
-
-NEW_GAME
-  └─▶ SORTIE_BANNER  ("First Sortie" / "Second Sortie" / "Third Sortie")
-        └─▶ GAMEPLAY
-              ├─▶ (64 rescued) ──▶ VICTORY_SEQUENCE ──▶ TITLE_SEQUENCE
-              ├─▶ (64 killed)  ──▶ LOSS_SEQUENCE    ──▶ TITLE_SEQUENCE
-              └─▶ (chopper dies)
-                    ├─▶ (sorties remain) ──▶ SORTIE_BANNER
-                    └─▶ (sorties = 0)   ──▶ LOSS_SEQUENCE ──▶ TITLE_SEQUENCE
+  └─▶ [boot logo splash ~2 s]
+        └─▶ MAIN_MENU  ◀────────────────────────────────────────────┐
+              │                                                      │
+              ├─▶ [Play → Retro Mode]                               │
+              │     └─▶ RETRO_TITLE_SEQUENCE                        │
+              │           ├─▶ (button) ──▶ SORTIE_BANNER            │
+              │           └─▶ (attract) ─▶ DEMO_MODE ──▶ ──────────┤
+              │                                                      │
+              ├─▶ [Play → Modern Pixel Art]                         │
+              │     └─▶ SORTIE_BANNER ──▶ GAMEPLAY                  │
+              │                                                      │
+              ├─▶ [Play → Hi-Res]                                   │
+              │     └─▶ SORTIE_BANNER ──▶ GAMEPLAY                  │
+              │                                                      │
+              └─▶ [Settings] (modal panel, no scene swap)           │
+                                                                     │
+SORT IE_BANNER                                                       │
+  └─▶ GAMEPLAY                                                       │
+        ├─▶ (64 rescued) ──▶ VICTORY_SEQUENCE ──▶ ──────────────────┤
+        ├─▶ (64 killed)  ──▶ LOSS_SEQUENCE    ──▶ ──────────────────┤
+        ├─▶ (pause → quit) ─────────────────── ──▶ ─────────────────┤
+        └─▶ (chopper dies)                                          │
+              ├─▶ (sorties remain) ──▶ SORTIE_BANNER                │
+              └─▶ (sorties = 0)   ──▶ LOSS_SEQUENCE ──▶ ───────────┘
 
 GAMEPLAY (any time)
-  └─▶ (pause input) ──▶ PAUSED ──▶ (resume) ──▶ GAMEPLAY
-                              └─▶ (quit)   ──▶ TITLE_SEQUENCE
+  └─▶ (pause input) ──▶ PAUSED ──▶ (resume)        ──▶ GAMEPLAY
+                              └─▶ (quit to menu)   ──▶ MAIN_MENU
+                              └─▶ (restart sortie) ──▶ SORTIE_BANNER
 ```
 
-### 11.2 Architecture
+### 11.2 Persistent Autoloads
 
-**Three persistent autoloads** (never unloaded):
+Four autoloads are never unloaded:
 
 | Autoload | Role |
 |---|---|
-| `GameState.gd` | Current state enum, sortie #, lives, hostage counts, level, visual mode |
+| `GameState.gd` | State enum, sortie #, lives remaining, hostage counts, selected visual mode |
 | `Settings.gd` | Loads `user://settings.cfg` at boot; saves on any change |
 | `AudioManager.gd` | Owns `AudioStreamPlayer` nodes for music + SFX; persists across scene swaps |
+| `SceneTransition.gd` | Full-screen black `ColorRect` at z=100; exposes `async transition_to(path)` (fade-out → swap → fade-in, ~0.3 s) |
 
-Scene transitions use `get_tree().change_scene_to_file()`. A fourth autoload, `SceneTransition.gd`, owns a full-screen black `ColorRect` at z=100 and exposes `async transition_to(path)` — fade to black, swap scene, fade from black (~0.3 s total). This hides any micro-stutter on scene load and gives a clean theatrical cut between states.
+### 11.3 Main Menu
 
-### 11.3 Scene Ownership
+**Visual style:** Always modern and hi-res regardless of selected game mode. The menu runs at the native display resolution using Godot `Control` nodes — these are unaffected by the pixel-art `Stretch` and `Nearest` filter settings applied to the game world.
+
+**Background:** A `SubViewport` renders a slow-scrolling animated game world preview (a biome appropriate to the selected mode, e.g. desert at dusk). The live world plays silently in the background at low speed with no entities. The menu UI panels overlay it with translucent dark backing.
+
+**Layout (vertical navigation card):**
+```
+┌──────────────────────────────────────────────────────┐
+│  [background: live animated world preview]            │
+│                                                       │
+│    CHOPLIFTER                  [logo, modern type]    │
+│                                                       │
+│    ┌─────────────────────────────────────────────┐   │
+│    │  ▶  PLAY  [Retro / Modern / Hi-Res toggle]  │   │
+│    ├─────────────────────────────────────────────┤   │
+│    │     SETTINGS                                │   │
+│    ├─────────────────────────────────────────────┤   │
+│    │     CREDITS                                 │   │
+│    ├─────────────────────────────────────────────┤   │
+│    │     QUIT  (desktop only; hidden on web)     │   │
+│    └─────────────────────────────────────────────┘   │
+│                                                       │
+│    Mode: [◀ Retro ▶]  [◀ Modern ▶]  [◀ Hi-Res ▶]    │
+└──────────────────────────────────────────────────────┘
+```
+
+- **Mode selector** is persistent across sessions (saved to `settings.cfg`).
+- **Play** launches the selected mode directly — no secondary mode-selection screen.
+- **Settings** slides in as a panel from the right without leaving the scene.
+- **Credits** is a scrolling overlay panel. No scene swap.
+- **Quit** uses `get_tree().quit()`. Hidden on web export (Godot detects this via `OS.get_name()`).
+
+**Navigation:** Keyboard (`↑↓ Enter`), controller (D-pad / left stick + A/Cross), mouse hover + click. Touch: tap targets minimum 48 dp.
+
+### 11.4 Scene Ownership
 
 | State | Scene | Notes |
 |---|---|---|
-| Boot | `Boot.tscn` | Loads `Settings.gd`, then immediately transitions to `TitleScreen.tscn` |
-| Title / Demo | `TitleScreen.tscn` | `AnimationPlayer` drives the Broderbund card → logo slide-in → mission card sequence. Demo mode sets `GameState.demo_mode = true` and loads `World.tscn` |
-| Sortie Banner | `SortieBanner.tscn` | Fullscreen interstitial, ~2 s, auto-advances; no input required |
-| Gameplay | `World.tscn` | All gameplay. `HUD.tscn` is an instanced `CanvasLayer` child. Victory and loss sequences play as **states within this scene** — world stays visible in the background for dramatic effect |
+| Boot | `Boot.tscn` | 1–2 frame scene. Loads `Settings.gd`, shows boot logo, transitions to `MainMenu.tscn` |
+| Main Menu | `MainMenu.tscn` | Hub. Always modern/hi-res. Contains animated bg `SubViewport`, UI panels, mode selector |
+| Retro title sequence | `RetroTitle.tscn` | Only played in Retro mode. Broderbund card → logo → mission card → attract demo. Any input skips to `SortieBanner.tscn` |
+| Sortie Banner | `SortieBanner.tscn` | Fullscreen interstitial (~2 s, auto-advances). Shared across all modes |
+| Gameplay | `World.tscn` | All gameplay. `HUD.tscn` is a `CanvasLayer` child. Victory/loss sequences play as states here |
 | Pause | — | Not a scene. `SceneTree.paused = true` + `PauseMenu` node shown/hidden inside `World.tscn` |
-| Settings | — | Not a scene. Sub-panel within `PauseMenu` (and a modal within `TitleScreen.tscn`). No scene swap needed |
+| Settings | — | Not a scene. Slide-in panel within `MainMenu.tscn` and sub-panel within `PauseMenu` |
 
-### 11.4 Loading & Transitions
+### 11.5 Loading & Transitions
 
-No dedicated loading screen is needed — assets load in milliseconds at this scale. The boot splash (Project Settings → Boot Splash) shows the logo on a black background during the initial engine start. After that, `SceneTransition.gd` fades handle all transitions.
+No dedicated loading screen. Godot's built-in boot splash (black bg + logo) shows during the initial engine start. `SceneTransition.gd` fades handle every subsequent transition.
 
-For web export, the browser renders Godot's built-in progress bar before handing off to `Boot.tscn`. The boot splash image is customized to match the game's visual style.
+For web export, the browser renders a Godot progress bar before handing off to `Boot.tscn`. The boot splash image matches the game logo on black.
 
-### 11.5 Pause Implementation
+### 11.6 Pause Implementation
 
-Godot's `SceneTree.paused = true` freezes all nodes whose `process_mode` is the default (`INHERIT` / `PAUSABLE`). Exceptions set to `ALWAYS`:
+`SceneTree.paused = true` freezes all nodes with default `process_mode`. Nodes set to `ALWAYS`:
 
-- `PauseMenu` and its children — must receive input and render
-- `AudioManager.gd` — music continues; SFX are simply not triggered while paused
-- `HUD.tscn` — remains visible behind the pause overlay
+- `PauseMenu` and children — receives input, renders overlay
+- `AudioManager.gd` — music continues uninterrupted
+- `HUD.tscn` — stays visible behind the overlay
 
-The pause overlay is a semi-transparent `ColorRect` + `VBoxContainer` with four options: **Resume**, **Restart Sortie**, **Quit to Title**, **Settings**. "Restart Sortie" resets `GameState` counters and reloads `World.tscn` without touching `Settings`.
+Pause menu options: **Resume** · **Restart Sortie** · **Quit to Menu** · **Settings**.
 
-### 11.6 Demo Mode
+"Quit to Menu" sets `GameState.input_locked = true`, unpauses the tree, then calls `SceneTransition.transition_to("MainMenu.tscn")`.
 
-The original game's `startDemoMode` routine replayed a hardcoded control input table stored in ROM. The port replicates this as a `Resource` array of `{action, duration_frames}` entries loaded from `res://demo/demo_input.tres`. The `Chopper.gd` input handler checks `GameState.demo_mode` and reads from this table instead of real input. Any real button press interrupts demo mode and transitions to `TitleScreen.tscn`.
+### 11.7 Demo Mode (Retro Only)
 
-### 11.7 Victory & Loss Sequences
+The original ROM's `startDemoMode` replayed a hardcoded control table. The port stores this as a `Resource` array of `{action, duration_frames}` at `res://data/demo_input.tres`. When `GameState.demo_mode == true`, `Chopper.gd` reads from this table instead of real input. Any real input during demo mode triggers an immediate transition to `MainMenu.tscn`.
 
-Both play inside `World.tscn` to keep the world visible:
+Demo mode is only reachable from `RetroTitle.tscn` (attract timer). Modern and Hi-Res modes do not have a demo/attract loop.
 
-- **Victory:** Spawn any remaining hostages waving, play victory fanfare, display "Mission Accomplished" overlay card for ~3 s, then fade to `TitleScreen.tscn`
-- **Loss (all killed):** Play loss sting, display "Mission Failed — All Hostages Lost" for ~2 s, fade to `TitleScreen.tscn`
-- **Loss (no sorties):** Brief game-over hold, display sortie-exhausted card, fade to `TitleScreen.tscn`
-- **Chopper death (sorties remain):** Explosion animation plays to completion, brief black hold (~1 s), fade to `SortieBanner.tscn`
+### 11.8 Victory & Loss Sequences
 
-All of these disable player input via `GameState.input_locked = true` that `Chopper.gd` checks at the top of its `_input()` handler.
+Both play inside `World.tscn` with the world still visible:
+
+- **Victory:** Remaining hostages spawn waving, victory fanfare plays, "Mission Accomplished" overlay shown ~3 s, then `transition_to("MainMenu.tscn")`
+- **Loss — all killed:** Loss sting plays, "Mission Failed" overlay ~2 s, then `transition_to("MainMenu.tscn")`
+- **Loss — sorties exhausted:** Game-over card ~2 s, then `transition_to("MainMenu.tscn")`
+- **Chopper death, sorties remain:** Explosion plays to completion, black hold ~1 s, `transition_to("SortieBanner.tscn")`
+
+All end states set `GameState.input_locked = true` at onset.
 
 ---
 
@@ -490,15 +549,18 @@ choplifter-clone/
 ├── src/
 │   ├── project.godot
 │   ├── autoload/
-│   │   ├── GameState.gd       ← Global state: sortie, level, hostage counts, current mode
-│   │   ├── Settings.gd        ← Load/save settings.cfg
-│   │   └── AudioManager.gd    ← Plays SFX/music; prevents duplicate-per-frame sounds
+│   │   ├── GameState.gd         ← State enum, sortie #, lives, hostage counts, visual mode
+│   │   ├── Settings.gd          ← Load/save user://settings.cfg
+│   │   ├── AudioManager.gd      ← Music + SFX players; duplicate-per-frame guard
+│   │   └── SceneTransition.gd   ← Fade-black ColorRect z=100; transition_to(path)
 │   ├── scenes/
-│   │   ├── World.tscn         ← Main gameplay scene (camera, terrain, spawn manager)
-│   │   ├── TitleScreen.tscn
-│   │   ├── SortieBanner.tscn
-│   │   ├── HUD.tscn           ← CanvasLayer, always on top
-│   │   └── PauseMenu.tscn
+│   │   ├── Boot.tscn            ← 1-frame init: load settings → transition to MainMenu
+│   │   ├── MainMenu.tscn        ← Hub; always hi-res/modern; animated bg SubViewport
+│   │   ├── RetroTitle.tscn      ← Retro-mode only: Broderbund → logo → demo attract
+│   │   ├── SortieBanner.tscn    ← Shared interstitial (all modes)
+│   │   ├── World.tscn           ← All gameplay; HUD CanvasLayer child
+│   │   ├── HUD.tscn             ← CanvasLayer; process_mode=ALWAYS
+│   │   └── PauseMenu.tscn       ← Overlay inside World; process_mode=ALWAYS
 │   ├── entities/
 │   │   ├── Chopper.tscn / Chopper.gd
 │   │   ├── Tank.tscn / Tank.gd
@@ -511,28 +573,31 @@ choplifter-clone/
 │   │   ├── Bomb.tscn / Bomb.gd
 │   │   └── Explosion.tscn / Explosion.gd
 │   ├── world/
-│   │   ├── Terrain.gd         ← Ground plane + depth layer management
+│   │   ├── Terrain.gd           ← Ground plane + depth layer management
 │   │   ├── Base.tscn / Base.gd
 │   │   ├── House.tscn / House.gd
 │   │   ├── FenceTower.tscn
-│   │   └── SpawnManager.gd    ← Enemy + hostage spawn timing and tables
+│   │   └── SpawnManager.gd      ← Enemy + hostage spawn timing tables
 │   ├── ui/
 │   │   ├── HUD.gd
+│   │   ├── MenuPanel.tscn       ← Reusable translucent panel for menu cards
+│   │   ├── SettingsPanel.tscn   ← Slide-in settings (used in MainMenu + PauseMenu)
 │   │   ├── VirtualJoystick.tscn / VirtualJoystick.gd
 │   │   └── TouchButtons.tscn
-│   └── tools/                 ← Editor/pipeline scripts, not shipped
-│       └── (sprite extractor etc.)
+│   └── data/
+│       └── demo_input.tres      ← Retro attract demo control table (Resource array)
 ├── assets/
 │   ├── graphics/
-│   │   ├── original-sprites/  ← Extracted Apple II sprites (Mode 1)
-│   │   ├── mode2/             ← Modern pixel art (Mode 2, added during art phase)
+│   │   ├── original-sprites/    ← Extracted Apple II sprites (Mode 1)
+│   │   ├── mode2/               ← Modern pixel art (Mode 2, added during art phase)
+│   │   ├── menu/                ← Hi-res menu assets (logo, backgrounds, icons)
 │   │   └── ui/
 │   ├── audio/
 │   │   ├── sfx/
 │   │   └── music/
-│   └── fonts/
+│   └── fonts/                   ← Modern typeface(s) for main menu + Mode 2+ HUD
 ├── docs/
-└── src/tools/                 ← Python pipeline tools
+└── src/tools/                   ← Python pipeline tools (not shipped)
 ```
 
 ---
@@ -570,3 +635,5 @@ All previously open questions are now settled:
 | Alien behavior | Fully documented in Section 4 (hover + chase AI, fires at level 3+) |
 | Biome progression | Desert → Jungle → Arctic → Tropical Island → Alien World (levels 0–7) |
 | Save system | Settings persist; game progress does not (faithful to original) |
+| Meta-menu architecture | Permanent hi-res Main Menu hub; all exits return here. Apple II title sequence is Retro-mode-only. Menu uses native resolution Control nodes; game world runs in SubViewport |
+| Title sequence ownership | Retro mode only (`RetroTitle.tscn`). Modern and Hi-Res modes launch directly to `SortieBanner.tscn` |
