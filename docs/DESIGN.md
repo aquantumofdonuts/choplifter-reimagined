@@ -48,9 +48,11 @@ The counters displayed to the player:
 |---|---|---|
 | **Tank** | 0+ | Rolls on ground planes at varying depths; aims cannon at chopper; fires ballistic shells |
 | **Jet** | 1+ | Flies at altitude; fires forward missiles and drops bombs; can attack from behind on higher levels |
-| **Alien** | 2+ | Jitters; exact behavior TBD (original source unclear) |
+| **Alien** | 2+ | UFO saucer that actively hunts the player; accelerates toward chopper on both axes (max VX ±5, max VY ±1); plays crackling audio keyed to animation frame; fires tank-shell-type projectiles downward at level 3+ (random spread, only at lower altitudes); despawns if player gets too far away on X; collides with and destroys the chopper on contact |
 
 Max simultaneous: 4 tanks, 4 jets, 4 aliens.
+
+**Alien animation detail:** Saucer has two composited layers — a static body and a sliding mid-section that cycles through 3 frames. The mid-section position jitters by 1px on odd frames, creating a flickering energy-ring effect. The `ENTITY_DIR` field is reused as the mid-section animation frame counter (0–2) rather than direction.
 
 **Houses** can be set on fire by enemy action, killing hostages inside.
 
@@ -120,7 +122,7 @@ A virtual input overlay is rendered on touch-capable devices, hidden otherwise. 
 
 **Touch-specific UX notes:**
 - Virtual stick appears where the thumb first touches (floating origin), not at a fixed position
-- `face_camera` triggered by pushing stick fully down, or by a dedicated button (TBD based on playtesting)
+- `face_camera` uses a **dedicated center button** between `face_left` and `face_right` (three face buttons total) — more discoverable than stick-down, avoids accidental triggers during descent
 - Buttons use high-contrast icons with generous tap targets (minimum 48×48 dp)
 - HUD counters are repositioned to avoid thumb overlap in portrait/landscape
 
@@ -179,7 +181,7 @@ python3 src/tools/extract_sprites.py \
 - Green `#3DFF39`, Violet `#C630FF`
 - Orange `#FF6300`, Blue `#006BFF`
 
-For Mode 1, extracted sprites are tinted orange (the dominant Choplifter sprite colour) over a black background. No art work required — this mode is fully playable with extracted assets.
+For Mode 1, extracted sprites are rendered **white on black** in Godot using a `CanvasItemMaterial` color modulate. This matches the cleanest reading of the original monochrome shapes. The `--ntsc` extractor output (orange/blue NTSC approximation) is available as a reference but is not used in-game — the pixel geometry is what matters for Mode 1, not the composite color fringing.
 
 ### 6.3 Mode 2 — Modern Pixel Art
 
@@ -233,8 +235,8 @@ Biomes are purely visual — same gameplay code, swappable `BiomeResource` conta
 | 0–1 | **Desert** | Orange dusk sky, sandy terrain | Mud-brick houses, palm trees |
 | 2–3 | **Jungle** | Deep green canopy, foggy horizon | Bamboo huts, vines, mist particles |
 | 4–5 | **Arctic** | Blue-white ice fields, aurora | Igloos, blizzard particle layer |
-| 6 | **Alien World** | Purple bio-luminescent landscape | Crystalline structures, glowing elements |
-| 7 | **Tropical Island** *(bonus)* | Turquoise water, coral reefs | Beach huts, volcanic mountains |
+| 6 | **Tropical Island** | Turquoise water, coral reefs | Beach huts, volcanic mountains |
+| 7 | **Alien World** *(final)* | Purple bio-luminescent landscape | Crystalline structures, glowing elements |
 
 Each biome is primarily a **palette swap + background swap**. Hostage houses, mountains, and ground tiles are themed per biome. Enemy sprites keep their shapes but receive palette tints.
 
@@ -269,32 +271,244 @@ Faithful to the original values extracted from the reverse-engineer:
 
 Physics will be implemented in `_physics_process()` using `CharacterBody2D`. The 16-bit fixed-point velocity model from the original will be replicated as floating-point in Godot (equivalent behavior, easier to work with).
 
----
-
-## 7. World & Rendering
-
-- **Scroll:** Horizontal only. Camera follows chopper X position. Chopper is not locked to screen center — it can drift toward edges.
-- **Parallax:** Background mountains scroll at ~50% of world scroll speed (built-in `ParallaxBackground`).
-- **Depth layers:** Tanks exist on up to 8 distinct ground planes, creating pseudo-3D depth. Each plane has a slightly different Y position and `z_index`.
-- **Renderer:** Godot's built-in 2D renderer. No custom blitter needed.
-- **Target resolution:** TBD. Likely 480×270 (pixel art, 1:1 pixels at 1080p/4x) or 640×360. The original was 280×192.
+**Turn state machine detail:**
+- `turn_state` integer tracks −5 to +5 (11 states); 0 = facing camera, negative = left, positive = right
+- `logical_face` is a separate boolean (left/right) that flips instantly on `face_*` input
+- Animation frame is driven by `turn_state`, not `logical_face`
+- Player cannot fire while `|turn_state| > 0` (turning in progress)
+- `turn_state` increments/decrements one step per frame toward the target state
 
 ---
 
-## 8. Audio
+## 8. World & Rendering
 
-- **Sound effects:** All actions have audio feedback (fire, explosion, hostage board/death, landing, engine hum). No duplicate sounds per frame (matches original behavior).
-- **Music:** TBD — the original had no music. Options: silence (faithful), ambient chiptune loop, or dynamic music that reacts to enemy proximity.
-- **Sound preference:** On/off toggle, saved to settings.
+- **Target resolution:** 480×270 (Mode 1 logical: 280×192 upscaled; Mode 2: native 480×270)
+- **Scroll:** Horizontal only. `Camera2D` follows chopper X. Chopper is not locked to screen center — it drifts toward edges within a dead zone.
+- **World width:** One continuous map per sortie, approximately 3–4 screens wide. The original had a single scrolling level that looped.
+- **Parallax:** `ParallaxBackground` with two mountain layers (30% and 50% scroll speed).
+- **Depth layers:** 8 distinct ground planes (z 1–8). Tanks occupy separate planes so they appear at different visual depths simultaneously.
+- **Renderer:** Godot's built-in 2D renderer. `Stretch/Mode = canvas_items`, `Textures/Filter = Nearest` (pixel art).
+- **Ground collision:** Flat ground at a fixed Y. Chopper lands when `position.y >= ground_y − chopper_height`. No terrain height variation (faithful to original).
 
 ---
 
-## 9. Open Questions
+## 9. Audio
 
-- [ ] Art style decision: pixel art retro vs. clean modern vector vs. hand-drawn
-- [ ] Target resolution / pixel size
-- [ ] `face_camera` on touch: stick-down or dedicated button?
-- [ ] Music: yes/no, and if yes, what style?
-- [ ] Web export: itch.io? GitHub Pages?
-- [ ] Controller rumble on death/explosion?
-- [ ] Alien behavior — needs more research into the original source
+### 9.1 Sound Effects
+
+All significant actions have audio feedback. No duplicate sounds per frame (matches original behavior — `HOSTAGE_FIRSTLOAD` and `HOSTAGE_FIRSTDEATH` flags prevent this).
+
+| Event | Sound Character |
+|---|---|
+| Chopper engine | Continuous low rotor hum, pitch shifts slightly with thrust |
+| Fire bullet | Short sharp crack |
+| Bullet impact / miss | Soft thud |
+| Tank shell fire | Low boom |
+| Jet missile fire | High whine |
+| Explosion | Multi-layer crunch + rumble |
+| Hostage boards | Short ascending beep |
+| Hostage death | Descending tone |
+| Landing (success) | Soft thud + settle |
+| Alien present | Crackling electrical noise, pitch keyed to animation frame |
+| Game over / victory | Simple fanfare |
+
+**Source:** Original SFX are 1-bit Apple II speaker tones. For the port, use generated/synthesized SFX via **jsfxr** (web) or **Bfxr** (desktop) — these tools produce the correct retro character without requiring a sound designer.
+
+### 9.2 Music
+
+The original had **no music**. The port will add an optional **dynamic chiptune score**:
+
+- **Calm layer:** Ambient melodic loop plays when no enemies are nearby
+- **Tension layer:** Faster, more dissonant layer crossfades in as enemies approach or fire
+- **Action layer:** Full percussion + lead melody when actively taking fire or rescuing hostages
+- **Victory sting:** Short fanfare on rescue completion
+- **Game over sting:** Descending phrase
+
+Music is **off by default** in Mode 1 (Retro) to preserve authenticity. On by default in Mode 2+.
+
+**Tooling:** Compose in **BeepBox** (free, browser-based, exports to JS/audio) or **FamiTracker** (NES-style chiptune). Export to OGG for Godot.
+
+### 9.3 Settings
+
+- Master volume (0–100)
+- SFX volume (0–100)
+- Music volume (0–100)
+- Music on/off toggle
+- All saved to `user://settings.cfg`
+
+---
+
+## 10. HUD & UI
+
+### 10.1 In-Game HUD
+
+Faithful to the original layout: counters along the top of the screen inside a bordered panel.
+
+| Counter | Label | Source Variable |
+|---|---|---|
+| Rescued | `RESCUED` | `TOTAL_RESCUES_BCD` |
+| Killed | `KILLED` | `HOSTAGES_KILLED_BCD` |
+| On board | `ABOARD` | `HOSTAGES_LOADED_BCD` |
+
+**Visual:** HUD sits in a fixed `CanvasLayer` above the game world, not affected by camera scroll. In Mode 1, uses extracted original digit sprites (6×7px each). In Mode 2+, redesigned with larger legible numerals.
+
+**Lives display:** 3 helicopter icons, one greyed-out per sortie lost. Located in HUD corner.
+
+### 10.2 Touch HUD Repositioning
+
+On touchscreen, the HUD shifts to avoid overlap with virtual controls:
+- Counters move to top-center
+- Lives icons move to top-left
+- Virtual controls occupy bottom 35% of screen
+
+### 10.3 Pause Screen
+
+- Overlay darkens the game world
+- Shows: Resume, Restart Sortie, Quit to Title, Settings
+- Settings accessible during pause (volume, controls, visual mode)
+
+### 10.4 Title Screen
+
+Faithful to original sequence:
+1. "Broderbund Presents" animation
+2. Choplifter logo slides in from both sides (crossed, then separated)
+3. "Your Mission: Rescue Hostages" card
+4. Demo mode auto-play (attracts new players)
+5. Press any button → start game
+
+---
+
+## 11. Game States & Flow
+
+```
+BOOT
+  └─▶ TITLE_SEQUENCE
+        ├─▶ (button press) ──▶ NEW_GAME
+        └─▶ (timer) ─────────▶ DEMO_MODE ──▶ TITLE_SEQUENCE
+
+NEW_GAME
+  └─▶ SORTIE_BANNER  ("First Sortie" / "Second Sortie" / "Third Sortie")
+        └─▶ GAMEPLAY
+              ├─▶ (64 rescued) ──▶ VICTORY_SEQUENCE ──▶ TITLE_SEQUENCE
+              ├─▶ (64 killed)  ──▶ LOSS_SEQUENCE    ──▶ TITLE_SEQUENCE
+              └─▶ (chopper dies)
+                    ├─▶ (sorties remain) ──▶ SORTIE_BANNER
+                    └─▶ (sorties = 0)   ──▶ LOSS_SEQUENCE ──▶ TITLE_SEQUENCE
+```
+
+**Implemented as a Godot `SceneTree` scene-swap or `GameState` autoload singleton** managing the current state enum. Each major state is its own scene or a state within `World.tscn`.
+
+---
+
+## 12. Settings & Save
+
+### 12.1 Settings (persisted to `user://settings.cfg`)
+
+| Setting | Type | Default |
+|---|---|---|
+| Visual mode | Enum (1/2/3) | 1 (Retro) |
+| Master volume | 0–100 | 80 |
+| SFX volume | 0–100 | 100 |
+| Music volume | 0–100 | 70 |
+| Music enabled | Bool | false (Mode 1), true (Mode 2+) |
+| Joystick X invert | Bool | false |
+| Joystick Y invert | Bool | false |
+| Input bindings | Dict | Defaults from Section 5 |
+
+### 12.2 No Save File
+
+The original game has no persistent save — each boot starts fresh. The port matches this. Settings are persisted; game progress is not.
+
+### 12.3 Input Rebinding
+
+Keyboard and controller bindings are remappable via an in-game key-capture UI (standard Godot `InputMap` pattern). Touch layout is not remappable but is auto-detected.
+
+---
+
+## 13. Project Structure (Godot)
+
+```
+choplifter-clone/
+├── src/
+│   ├── project.godot
+│   ├── autoload/
+│   │   ├── GameState.gd       ← Global state: sortie, level, hostage counts, current mode
+│   │   ├── Settings.gd        ← Load/save settings.cfg
+│   │   └── AudioManager.gd    ← Plays SFX/music; prevents duplicate-per-frame sounds
+│   ├── scenes/
+│   │   ├── World.tscn         ← Main gameplay scene (camera, terrain, spawn manager)
+│   │   ├── TitleScreen.tscn
+│   │   ├── SortieBanner.tscn
+│   │   ├── HUD.tscn           ← CanvasLayer, always on top
+│   │   └── PauseMenu.tscn
+│   ├── entities/
+│   │   ├── Chopper.tscn / Chopper.gd
+│   │   ├── Tank.tscn / Tank.gd
+│   │   ├── Jet.tscn / Jet.gd
+│   │   ├── Alien.tscn / Alien.gd
+│   │   ├── Hostage.tscn / Hostage.gd
+│   │   ├── Bullet.tscn / Bullet.gd
+│   │   ├── Shell.tscn / Shell.gd
+│   │   ├── Missile.tscn / Missile.gd
+│   │   ├── Bomb.tscn / Bomb.gd
+│   │   └── Explosion.tscn / Explosion.gd
+│   ├── world/
+│   │   ├── Terrain.gd         ← Ground plane + depth layer management
+│   │   ├── Base.tscn / Base.gd
+│   │   ├── House.tscn / House.gd
+│   │   ├── FenceTower.tscn
+│   │   └── SpawnManager.gd    ← Enemy + hostage spawn timing and tables
+│   ├── ui/
+│   │   ├── HUD.gd
+│   │   ├── VirtualJoystick.tscn / VirtualJoystick.gd
+│   │   └── TouchButtons.tscn
+│   └── tools/                 ← Editor/pipeline scripts, not shipped
+│       └── (sprite extractor etc.)
+├── assets/
+│   ├── graphics/
+│   │   ├── original-sprites/  ← Extracted Apple II sprites (Mode 1)
+│   │   ├── mode2/             ← Modern pixel art (Mode 2, added during art phase)
+│   │   └── ui/
+│   ├── audio/
+│   │   ├── sfx/
+│   │   └── music/
+│   └── fonts/
+├── docs/
+└── src/tools/                 ← Python pipeline tools
+```
+
+---
+
+## 14. Release Roadmap
+
+| Version | Goal | Key Features |
+|---|---|---|
+| **v0.1** | Playable core, Retro mode | Chopper physics, scrolling world, hostages, tanks, Mode 1 sprites |
+| **v0.2** | Full game, Retro mode | Jets, aliens, difficulty scaling, sorties, win/lose, title screen |
+| **v0.3** | Modern mode, Desert biome | Mode 2 pixel art, Desert biome, remastered SFX, chiptune music |
+| **v0.4** | Biomes 2–3 | Jungle + Arctic biomes, dynamic music system |
+| **v0.5** | Biomes 4–5 | Tropical Island + Alien World biomes |
+| **v1.0** | Release | Polish pass, web export to itch.io, controller rumble, all platforms |
+| **v2.0** | Hi-Res mode | Mode 3 visual overhaul (scope TBD after v1.0 ships) |
+
+**Web export:** Primary release target alongside desktop. Published to **itch.io** (main distribution) and **GitHub Pages** (dev/preview builds).
+
+**Controller haptics:** Light rumble on landing; strong pulse on death/explosion; gentle buzz on hostage boarding. Implemented via Godot's `Input.start_joy_vibration()`. Off by default, toggleable in settings.
+
+---
+
+## 15. Resolved Design Decisions
+
+All previously open questions are now settled:
+
+| Question | Decision |
+|---|---|
+| Art style | Three-tier mode system (Retro / Modern Pixel Art / Hi-Res) |
+| Target resolution | 480×270 (Mode 2+); 280×192 logical upscaled (Mode 1) |
+| `face_camera` on touch | Dedicated center button between `face_left` / `face_right`; more discoverable than stick-down |
+| Music | Dynamic chiptune, 3 intensity layers; off by default in Mode 1, on in Mode 2+ |
+| Web export destination | itch.io (primary) + GitHub Pages (dev previews) |
+| Controller rumble | Yes — landing, death, explosion, hostage board; off by default in settings |
+| Alien behavior | Fully documented in Section 4 (hover + chase AI, fires at level 3+) |
+| Biome progression | Desert → Jungle → Arctic → Tropical Island → Alien World (levels 0–7) |
+| Save system | Settings persist; game progress does not (faithful to original) |
