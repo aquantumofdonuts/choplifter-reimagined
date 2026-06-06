@@ -56,6 +56,39 @@ Max simultaneous: 4 tanks, 4 jets, 4 aliens.
 
 **Houses** can be set on fire by enemy action, killing hostages inside.
 
+### 4.1 Difficulty Scaling
+
+`CURR_LEVEL` runs 0–7 and is incremented after each successful rescue batch (hostages delivered back to base). **It does not reset between sorties.**
+
+**Spawn schedule (from source):**
+- Enemy vehicle spawn attempt: **every 47 frames** (~0.78 s at 60 fps)
+- Hostage emergence attempt: **every 3 frames** (~0.05 s at 60 fps)
+
+**Max simultaneous enemies per level:**
+
+| `CURR_LEVEL` | Max Tanks | Max Jets | Max Aliens |
+|---|---|---|---|
+| 0 | 1 | 0 | 0 |
+| 1 | 2 | 1 | 0 |
+| 2 | 2 | 2 | 1 |
+| 3–7 | 2 | 2 | 2 |
+
+Level 3 is effectively the maximum difficulty for enemy counts. Levels 4–7 retain the same caps but enemy aggression and projectile frequency may be tuned upward.
+
+### 4.2 Entity Parameters
+
+Values extracted from the original source; port should match these as a baseline before any tuning:
+
+| Entity | Key Parameters |
+|---|---|
+| Tank | Patrols on a random depth plane; cannon aims at chopper X/Y each frame; fires at variable intervals based on player proximity |
+| Jet | Spawns above chopper altitude; X-velocity driven by bank-angle table (barrel-roll animation ↔ velocity); fires missiles forward, drops bombs on proximity |
+| Alien | Chase acceleration toward player each frame; max VX ±5 px/frame, max VY ±1 px/frame; fires downward shells at level 3+ only when chopper is below a threshold altitude; despawns if Δx to player exceeds ~2 screens |
+| Player bullet | 5 max on screen simultaneously; simple horizontal velocity |
+| Tank shell | Ballistic arc (gravity applied each frame) |
+| Jet missile | Constant horizontal velocity, level flight |
+| Jet bomb | Gravity drop from jet altitude |
+
 ---
 
 ## 5. Controls
