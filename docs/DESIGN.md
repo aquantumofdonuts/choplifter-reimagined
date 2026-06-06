@@ -17,11 +17,13 @@ A faithful-but-modernized reimplementation of Dan Gorlin's *Choplifter* (1982, B
 ## 2. Core Loop
 
 1. Take off from the base
-2. Fly left across side-scrolling terrain under enemy fire
+2. Fly left toward hostage buildings; rescue run is left-to-right relative to the base
 3. Land near hostage buildings; hostages run out and board automatically
-4. Return rescued hostages to base; they disembark on landing
+4. Return right to base; they disembark on landing
 5. Difficulty increases after each successful rescue run
 6. Repeat until all 64 hostages are rescued (win) or 64 are killed / 3 lives exhausted (loss)
+
+> **Note:** The player can fly freely in both directions at any time. The left/right orientation is the intended rescue route, not a restriction.
 
 ---
 
@@ -58,22 +60,25 @@ Max simultaneous: 4 tanks, 4 jets, 4 aliens.
 
 ### 4.1 Difficulty Scaling
 
-`CURR_LEVEL` runs 0–7 and is incremented after each successful rescue batch (hostages delivered back to base). **It does not reset between sorties.**
+**Mode 1 (faithful):** `CURR_LEVEL` runs **0–3** and is incremented after each successful rescue unload, capped at 3 by the source (`cmp #$03 / beq skip_increment`). It does **not** reset between sorties.
+
+**Mode 2 / Mode 3 (enhanced):** Level cap is extended to 7, enabling the full biome progression. Levels 4–7 use the same enemy caps as level 3 but add tuned aggression, spawn rate adjustments, and biome transitions.
 
 **Spawn schedule (from source):**
 - Enemy vehicle spawn attempt: **every 47 frames** (~0.78 s at 60 fps)
 - Hostage emergence attempt: **every 3 frames** (~0.05 s at 60 fps)
 
-**Max simultaneous enemies per level:**
+**Max simultaneous enemies per level (faithful values from source):**
 
 | `CURR_LEVEL` | Max Tanks | Max Jets | Max Aliens |
 |---|---|---|---|
 | 0 | 1 | 0 | 0 |
 | 1 | 2 | 1 | 0 |
 | 2 | 2 | 2 | 1 |
-| 3–7 | 2 | 2 | 2 |
+| 3 *(cap in Mode 1)* | 2 | 2 | 2 |
+| 4–7 *(Mode 2/3 extension)* | 2 | 2 | 2 |
 
-Level 3 is effectively the maximum difficulty for enemy counts. Levels 4–7 retain the same caps but enemy aggression and projectile frequency may be tuned upward.
+Levels 4–7 retain the same caps as level 3. Mode 2/3 difficulty tuning at those levels is via aggression, fire rate, and biome visual escalation — not more simultaneous units.
 
 ### 4.2 Entity Parameters
 
@@ -83,7 +88,7 @@ Values extracted from the original source; port should match these as a baseline
 |---|---|
 | Tank | Patrols on a random depth plane; cannon aims at chopper X/Y each frame; fires at variable intervals based on player proximity |
 | Jet | Spawns above chopper altitude; X-velocity driven by bank-angle table (barrel-roll animation ↔ velocity); fires missiles forward, drops bombs on proximity |
-| Alien | Chase acceleration toward player each frame; max VX ±5 px/frame, max VY ±1 px/frame; fires downward shells at level 3+ only when chopper is below a threshold altitude; despawns if Δx to player exceeds ~2 screens |
+| Alien | Chase acceleration toward player each frame; max VX ±5 px/frame, max VY ±1 px/frame; **hover damp:** when the saucer body is off-screen or mid-animation cycle resets, `ENTITY_VY` is zeroed to level off flight (prevents dead-reckoning straight at the player); fires downward shells at level 3+ only when chopper is below a threshold altitude; despawns if Δx to player exceeds ~2 screens |
 | Player bullet | 5 max on screen simultaneously; simple horizontal velocity |
 | Tank shell | Ballistic arc (gravity applied each frame) |
 | Jet missile | Constant horizontal velocity, level flight |
@@ -261,25 +266,31 @@ Asset pipeline:
 
 ### 6.5 Biomes (Mode 2 + 3)
 
-Biomes are purely visual — same gameplay code, swappable `BiomeResource` containing sprite atlases, colour palettes, background scenes, and audio ambience.
+Biomes are purely visual — same gameplay code, swappable `BiomeResource` containing sprite atlases, colour palettes, background scenes, and audio ambience. **Mode 1 has no biomes** — it uses the single original Apple II environment throughout.
 
-| Difficulty Level | Biome | Sky / Ground | New Visual Elements |
-|---|---|---|---|
-| 0–1 | **Desert** | Orange dusk sky, sandy terrain | Mud-brick houses, palm trees |
-| 2–3 | **Jungle** | Deep green canopy, foggy horizon | Bamboo huts, vines, mist particles |
-| 4–5 | **Arctic** | Blue-white ice fields, aurora | Igloos, blizzard particle layer |
-| 6 | **Tropical Island** | Turquoise water, coral reefs | Beach huts, volcanic mountains |
-| 7 | **Alien World** *(final)* | Purple bio-luminescent landscape | Crystalline structures, glowing elements |
+Biome transitions are triggered by **rescue batch count** (not `CURR_LEVEL` directly), so they can progress smoothly across the extended 8-biome span independent of the 0–3 difficulty cap.
+
+| Biome # | Biome | Trigger (rescue batches) | Sky / Ground | New Visual Elements |
+|---|---|---|---|---|
+| 0 | **Desert** | 0–1 | Orange dusk sky, sandy terrain | Mud-brick houses, palm trees |
+| 1 | **Jungle** | 2–3 | Deep green canopy, foggy horizon | Bamboo huts, vines, mist particles |
+| 2 | **Arctic** | 4–5 | Blue-white ice fields, aurora | Igloos, blizzard particle layer |
+| 3 | **Tropical Island** | 6 | Turquoise water, coral reefs | Beach huts, volcanic mountains |
+| 4 | **Alien World** *(final)* | 7 | Purple bio-luminescent landscape | Crystalline structures, glowing elements |
 
 Each biome is primarily a **palette swap + background swap**. Hostage houses, mountains, and ground tiles are themed per biome. Enemy sprites keep their shapes but receive palette tints.
 
 ### 6.6 Render Layer Stack
 
+**Mode 1 (faithful):** One mountain layer at exactly 50% scroll speed, matching the source (`renderMountains` does a single right-shift of `ZP_SCROLLPOS`).
+
+**Mode 2 / Mode 3 (enhanced):** Two mountain layers plus a biome background layer.
+
 ```
 z -4   Distant stars / sky gradient         (fixed, no scroll)
-z -3   Far mountains                        (parallax 30%)
-z -2   Mid mountains                        (parallax 50%)
-z -1   Biome background elements            (parallax 70%)
+z -3   Far mountains           [Mode 2/3]   (parallax 30%)
+z -2   Mountains               [Mode 1: 50% | Mode 2/3: 50%]
+z -1   Biome background        [Mode 2/3 only]  (parallax 70%)
 z  0   Ground plane, base, fence, houses
 z  1–8 Tank depth planes (8 ground layers)  (z_index = depth_layer)
 z  9   Hostages, bullets, shells
@@ -316,9 +327,9 @@ Physics will be implemented in `_physics_process()` using `CharacterBody2D`. The
 ## 8. World & Rendering
 
 - **Target resolution:** 480×270 (Mode 1 logical: 280×192 upscaled; Mode 2: native 480×270)
-- **Scroll:** Horizontal only. `Camera2D` follows chopper X. Chopper is not locked to screen center — it drifts toward edges within a dead zone.
+- **Scroll:** Horizontal only. Scroll position tracks a **lead offset ahead of the chopper** based on velocity direction — not a symmetric dead zone. The lead is asymmetric: ~70 px of lead when flying left, ~210 px when flying right (matching the original `SCROLL_LEAD_L = $46`, `SCROLL_LEAD_R = $D2`). The chopper appears roughly 25% from the left edge when flying left, and further from the right edge when flying right. While grounded or flying backwards, the scroll instead clamps to a dead-band around the chopper position.
 - **World width:** One continuous map per sortie, approximately 3–4 screens wide. The original had a single scrolling level that looped.
-- **Parallax:** `ParallaxBackground` with two mountain layers (30% and 50% scroll speed).
+- **Parallax:** Mode 1: one mountain layer at 50% (single right-shift, exact source behaviour). Mode 2/3: two layers at 30% and 50% plus a biome background layer.
 - **Depth layers:** 8 distinct ground planes (z 1–8). Tanks occupy separate planes so they appear at different visual depths simultaneously.
 - **Renderer:** Godot's built-in 2D renderer. `Stretch/Mode = canvas_items`, `Textures/Filter = Nearest` (pixel art).
 - **Ground collision:** Flat ground at a fixed Y. Chopper lands when `position.y >= ground_y − chopper_height`. No terrain height variation (faithful to original).
