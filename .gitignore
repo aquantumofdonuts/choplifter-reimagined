@@ -1,0 +1,143 @@
+# ──────────────────────────────────────────────
+# OS / system files
+# ──────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ──────────────────────────────────────────────
+# Editors & IDEs
+# ──────────────────────────────────────────────
+.vscode/settings.json
+.vscode/*.code-workspace
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+
+# ──────────────────────────────────────────────
+# Godot 4.x
+# ──────────────────────────────────────────────
+.godot/
+*.translation
+
+# Godot 3.x
+*.import
+export.cfg
+export_presets.cfg
+.mono/
+
+# ──────────────────────────────────────────────
+# Unity
+# ──────────────────────────────────────────────
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage
+*.app
+crashlytics-build.properties
+Assets/Plugins/Editor/JetBrains*
+
+# ──────────────────────────────────────────────
+# Unreal Engine
+# ──────────────────────────────────────────────
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+*.VC.db
+*.opensdf
+*.sdf
+*.sln
+*.suo
+*.xcworkspace
+
+# ──────────────────────────────────────────────
+# Python (Pygame, etc.)
+# ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.env
+.venv/
+env/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# ──────────────────────────────────────────────
+# Node / JavaScript / TypeScript (Phaser, etc.)
+# ──────────────────────────────────────────────
+node_modules/
+dist/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ──────────────────────────────────────────────
+# Rust (Bevy, etc.)
+# ──────────────────────────────────────────────
+target/
+Cargo.lock
+
+# ──────────────────────────────────────────────
+# C / C++ (SDL, raylib, etc.)
+# ──────────────────────────────────────────────
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# ──────────────────────────────────────────────
+# Build outputs & binaries
+# ──────────────────────────────────────────────
+build/
+bin/
+out/
+release/
+
+# ──────────────────────────────────────────────
+# Misc
+# ──────────────────────────────────────────────
+*.bak
+*.tmp
+*.orig
+*.patch
+.env
+.env.local
+secrets.*
