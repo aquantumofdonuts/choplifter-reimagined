@@ -380,11 +380,13 @@ Faithful to original sequence:
 
 ## 11. Game States & Flow
 
+### 11.1 State Diagram
+
 ```
 BOOT
   └─▶ TITLE_SEQUENCE
-        ├─▶ (button press) ──▶ NEW_GAME
-        └─▶ (timer) ─────────▶ DEMO_MODE ──▶ TITLE_SEQUENCE
+        ├─▶ (any button) ────▶ NEW_GAME
+        └─▶ (attract timer) ─▶ DEMO_MODE ──▶ TITLE_SEQUENCE
 
 NEW_GAME
   └─▶ SORTIE_BANNER  ("First Sortie" / "Second Sortie" / "Third Sortie")
@@ -394,9 +396,65 @@ NEW_GAME
               └─▶ (chopper dies)
                     ├─▶ (sorties remain) ──▶ SORTIE_BANNER
                     └─▶ (sorties = 0)   ──▶ LOSS_SEQUENCE ──▶ TITLE_SEQUENCE
+
+GAMEPLAY (any time)
+  └─▶ (pause input) ──▶ PAUSED ──▶ (resume) ──▶ GAMEPLAY
+                              └─▶ (quit)   ──▶ TITLE_SEQUENCE
 ```
 
-**Implemented as a Godot `SceneTree` scene-swap or `GameState` autoload singleton** managing the current state enum. Each major state is its own scene or a state within `World.tscn`.
+### 11.2 Architecture
+
+**Three persistent autoloads** (never unloaded):
+
+| Autoload | Role |
+|---|---|
+| `GameState.gd` | Current state enum, sortie #, lives, hostage counts, level, visual mode |
+| `Settings.gd` | Loads `user://settings.cfg` at boot; saves on any change |
+| `AudioManager.gd` | Owns `AudioStreamPlayer` nodes for music + SFX; persists across scene swaps |
+
+Scene transitions use `get_tree().change_scene_to_file()`. A fourth autoload, `SceneTransition.gd`, owns a full-screen black `ColorRect` at z=100 and exposes `async transition_to(path)` — fade to black, swap scene, fade from black (~0.3 s total). This hides any micro-stutter on scene load and gives a clean theatrical cut between states.
+
+### 11.3 Scene Ownership
+
+| State | Scene | Notes |
+|---|---|---|
+| Boot | `Boot.tscn` | Loads `Settings.gd`, then immediately transitions to `TitleScreen.tscn` |
+| Title / Demo | `TitleScreen.tscn` | `AnimationPlayer` drives the Broderbund card → logo slide-in → mission card sequence. Demo mode sets `GameState.demo_mode = true` and loads `World.tscn` |
+| Sortie Banner | `SortieBanner.tscn` | Fullscreen interstitial, ~2 s, auto-advances; no input required |
+| Gameplay | `World.tscn` | All gameplay. `HUD.tscn` is an instanced `CanvasLayer` child. Victory and loss sequences play as **states within this scene** — world stays visible in the background for dramatic effect |
+| Pause | — | Not a scene. `SceneTree.paused = true` + `PauseMenu` node shown/hidden inside `World.tscn` |
+| Settings | — | Not a scene. Sub-panel within `PauseMenu` (and a modal within `TitleScreen.tscn`). No scene swap needed |
+
+### 11.4 Loading & Transitions
+
+No dedicated loading screen is needed — assets load in milliseconds at this scale. The boot splash (Project Settings → Boot Splash) shows the logo on a black background during the initial engine start. After that, `SceneTransition.gd` fades handle all transitions.
+
+For web export, the browser renders Godot's built-in progress bar before handing off to `Boot.tscn`. The boot splash image is customized to match the game's visual style.
+
+### 11.5 Pause Implementation
+
+Godot's `SceneTree.paused = true` freezes all nodes whose `process_mode` is the default (`INHERIT` / `PAUSABLE`). Exceptions set to `ALWAYS`:
+
+- `PauseMenu` and its children — must receive input and render
+- `AudioManager.gd` — music continues; SFX are simply not triggered while paused
+- `HUD.tscn` — remains visible behind the pause overlay
+
+The pause overlay is a semi-transparent `ColorRect` + `VBoxContainer` with four options: **Resume**, **Restart Sortie**, **Quit to Title**, **Settings**. "Restart Sortie" resets `GameState` counters and reloads `World.tscn` without touching `Settings`.
+
+### 11.6 Demo Mode
+
+The original game's `startDemoMode` routine replayed a hardcoded control input table stored in ROM. The port replicates this as a `Resource` array of `{action, duration_frames}` entries loaded from `res://demo/demo_input.tres`. The `Chopper.gd` input handler checks `GameState.demo_mode` and reads from this table instead of real input. Any real button press interrupts demo mode and transitions to `TitleScreen.tscn`.
+
+### 11.7 Victory & Loss Sequences
+
+Both play inside `World.tscn` to keep the world visible:
+
+- **Victory:** Spawn any remaining hostages waving, play victory fanfare, display "Mission Accomplished" overlay card for ~3 s, then fade to `TitleScreen.tscn`
+- **Loss (all killed):** Play loss sting, display "Mission Failed — All Hostages Lost" for ~2 s, fade to `TitleScreen.tscn`
+- **Loss (no sorties):** Brief game-over hold, display sortie-exhausted card, fade to `TitleScreen.tscn`
+- **Chopper death (sorties remain):** Explosion animation plays to completion, brief black hold (~1 s), fade to `SortieBanner.tscn`
+
+All of these disable player input via `GameState.input_locked = true` that `Chopper.gd` checks at the top of its `_input()` handler.
 
 ---
 
