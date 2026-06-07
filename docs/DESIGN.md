@@ -94,7 +94,7 @@ Values extracted from the original source; port should match these as a baseline
 
 | Entity | Key Parameters |
 |---|---|
-| Tank | Patrols on a random depth plane; cannon aims at chopper X/Y each frame; fires at variable intervals based on player proximity. **Known source bug (Mode 1 must replicate):** `ENTITY_X_H` (high byte of tank X position) is always set to 0 — tanks always spawn on X-page 0 regardless of player position. |
+| Tank | Patrols on a random depth plane; cannon aims at chopper X/Y each frame; fires at variable intervals based on player proximity. **Known source bug (Mode 1 must replicate):** in the `spawnTankPosV` path (player heading right, `choplifter.s:3920–3929`), `ENTITY_X_H` (high byte of tank X position) is always set to 0 — tanks spawned while the player flies right cluster at X-page 0. The `spawnTankNegV` path (player heading left, `choplifter.s:3908–3915`) correctly computes `ENTITY_X_H` from the player position and is unaffected. |
 | Jet | Spawns above chopper altitude; X-velocity driven by bank-angle table (barrel-roll animation ↔ velocity); fires missiles forward, drops bombs on proximity |
 | Alien | Chase acceleration toward player each frame; max VX ±5 px/frame, max VY ±1 px/frame; **hover damp:** when the saucer body is off-screen or mid-animation cycle resets, `ENTITY_VY` is zeroed to level off flight (prevents dead-reckoning straight at the player); fires downward shells at level 3+ only when chopper is below a threshold altitude; despawns if Δx to player exceeds ~2 screens |
 | Player bullet | 5 max on screen simultaneously; velocity and gravity keyed to `ZP_TURN_STATE` — bullets fire at different angles during turns (see §7 Bullet Trajectory) |
@@ -249,20 +249,17 @@ For Mode 1, extracted sprites are rendered **white on black** in Godot using a `
 | Hostage | 8×14 px |
 | Jet | 32×12 px |
 
-**AI-assisted art pipeline:**
+**Asset pipeline:** See [ASSET_PIPELINE.md](ASSET_PIPELINE.md) for the full spec, tool stack, and setup instructions. Summary:
 
 | Task | Tool | Notes |
 |---|---|---|
-| Background environments | Midjourney / Leonardo.ai → Aseprite | Generate → palette-constrain → clean up |
-| Terrain tiles | AI + Aseprite | 16×16 or 32×32 tileable tiles |
-| Static sprites (reference) | AI generation | Use as color/shape reference only |
-| Animated sprites | Aseprite (manual) | Use AI reference, hand-pixel the frames |
-| Palette management | Lospec Palette List | Pick one 16–32 colour palette per biome |
-
-**Required tool:** [Aseprite](https://www.aseprite.org/) (~$20). Non-negotiable for pixel art animation.
+| All sprites ≥24px | Scenario MCP (VS Code) → ImageMagick → Pillow | Custom LoRA style model; ~165 sprites total |
+| Sprites ≤16px (bullet, shell, missile, bomb, hostage frames) | Manual pixel editor (Aseprite, Piskel, etc.) | AI downscaling not viable at this size |
+| Biome environments / backgrounds | Scenario MCP → post-process | Per-biome palette applied in post-process |
+| Palette management | Endesga 32 (Lospec) | Defined in `src/tools/config/palette_mode2.gpl` |
 
 **Chopper animation breakdown (Mode 2):**
-- 11 tilt frames (traced from Mode 1 as reference, redrawn at larger size)
+- 11 tilt frames (AI-generated via Scenario, post-processed)
 - 5 head-on rotation frames
 - 4-frame rotor spin cycle (main + tail, separately animated and composited)
 - Total: ~20 unique frames, left-facing — engine mirrors for right-facing
@@ -322,7 +319,7 @@ Faithful to the original values extracted from the reverse-engineer:
 | Parameter | Original Value | Notes |
 |---|---|---|
 | Y acceleration model | `integrateAccelerationAccelYTable` (16-entry signed byte table) | See table below — do NOT use simple constant values |
-| Gravity index (`ZP_ACCELY`) | 8 (index into table) → **−1 unit/frame** applied to velocity | Neutral stick / no thrust |
+| Gravity index (`ZP_ACCELY`) | 8 (index into table) → **−2 unit/frame** applied to velocity | Neutral stick / no thrust (`zeropage.s:26` sets `$08`) |
 | Full thrust index (`ZP_ACCELY`) | 15 (index into table) → **+6 units/frame** applied to velocity | Full stick up |
 | Turn animation frames | −5 to +5 (11 states) | Firing IS permitted during turns; bullet angle varies |
 | Max player bullets | 5 on screen simultaneously | |
@@ -347,13 +344,13 @@ Physics will be implemented in `_physics_process()` using `CharacterBody2D`. For
 
 **Bullet trajectory during turns** (`bulletGravityTable`, source `choplifter.s:7260`):
 
-Bullets fire from the chopper front at an angle determined by `|turn_state|` (0 = fully sideways, 5 = fully toward camera). As the chopper turns toward camera, bullets arc downward:
+Bullets fire from the chopper front, and their downward gravity is determined by `|turn_state|`. Per the turn state machine above, `|turn_state| = 0` is **fully camera-facing** (head-on) and `|turn_state| = 5` is **full side profile**. The source comment reads *"Full side shots have no gravity, but bombs fall."*
 
 | `|turn_state|` | 0 | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|---|
 | Bullet gravity (signed) | −2 | −2 | −1 | −1 | −1 | 0 |
 
-`turn_state = 0` (fully sideways) = horizontal shot with slight upward trajectory. `turn_state = ±5` (fully camera-facing) = near-vertical downward drop. The `bulletVelocityTable` (`choplifter.s:4743`) maps turn state to the lateral velocity component.
+`turn_state = 0` (fully camera-facing / head-on) = the shot drops most steeply (gravity −2), arcing downward toward the camera. `turn_state = ±5` (full side profile) = horizontal shot with **no** gravity (flies straight across). The `bulletVelocityTable` (`choplifter.s:4743`) maps turn state to the lateral velocity component.
 
 **Landing physics (Mode 1 — source values):**
 - `LAUNCHTHRESH`: minimum upward Y velocity required to leave the ground (become airborne)
@@ -396,7 +393,7 @@ All significant actions have audio feedback. No duplicate sounds per frame (matc
 | Alien present | Crackling electrical noise, pitch keyed to animation frame |
 | Game over / victory | Simple fanfare |
 
-**Source:** Original SFX are 1-bit Apple II speaker tones. For the port, use generated/synthesized SFX via **jsfxr** (web) or **Bfxr** (desktop) — these tools produce the correct retro character without requiring a sound designer.
+**Source:** Original SFX are 1-bit Apple II speaker tones. For the port, SFX are synthesized via **numpy/scipy** waveform generation → ffmpeg → OGG. See [ASSET_PIPELINE.md §4](ASSET_PIPELINE.md) for the full spec and SFX list.
 
 ### 9.2 Music
 
@@ -410,7 +407,7 @@ The original had **no music**. The port will add an optional **dynamic chiptune 
 
 Music is **off by default** in Mode 1 (Retro) to preserve authenticity. On by default in Mode 2+.
 
-**Tooling:** Compose in **BeepBox** (free, browser-based, exports to JS/audio) or **FamiTracker** (NES-style chiptune). Export to OGG for Godot.
+**Tooling:** Composed in Python via **midiutil**, rendered to WAV by **FluidSynth** with a chiptune soundfont, converted to OGG by **ffmpeg**. Victory and loss stings are part of the music pipeline. See [ASSET_PIPELINE.md §5](ASSET_PIPELINE.md) for the full spec.
 
 ### 9.3 Settings
 

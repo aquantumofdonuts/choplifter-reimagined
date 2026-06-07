@@ -3,6 +3,8 @@
 Source: [blondie7575/ChoplifterReverse](https://github.com/blondie7575/ChoplifterReverse)  
 Full write-up by Quinn Dunki: https://blondihacks.com/reversing-choplifter
 
+> **Authority note:** This document is an exploratory analysis. Where any value here conflicts with [DESIGN.md](DESIGN.md), **DESIGN.md is authoritative** — it carries the source-verified constants. An early version of this analysis inherited several misreadings of `zeropage.s` comments (treating table *indices* as magnitudes) and of in-source comments (spawn cadences). Those values have been corrected in place below; the corrections are flagged where they occur.
+
 ---
 
 ## 1. What the Source Code Is
@@ -113,16 +115,16 @@ House states: $00=untouched, $01=on fire
 5. Base door reached → rescue counted
 
 Victory: `TOTAL_RESCUES == 64` (all 64 hostages across all rounds)  
-Loss: `HOSTAGES_KILLED == 64` OR sorties exhausted
+Loss: `TOTAL_RESCUES + HOSTAGES_KILLED == 64` (with the win check running first) OR sorties exhausted. With exactly 64 hostages total, this means the game ends when the last hostage is accounted for — any kill that completes the count of 64 ends the game without a win. (`choplifter.s:599–608`. Corrected: earlier text said `HOSTAGES_KILLED == 64`.)
 
 ### 2.6 Enemy Spawning & Difficulty
 
 ```
 SORTIE   0–2    Lives remaining (3 lives total)
-CURR_LEVEL  0–7    Difficulty, incremented after each rescue batch
+CURR_LEVEL  0–3    Difficulty in Mode 1, capped at 3 by source (`cmp #$03 / beq`); incremented after each rescue batch. (Mode 2/3 extend the cap to 7.)
 ```
 
-**Spawn schedule:** Every 47 frames, try to spawn an enemy vehicle. Every 3 frames, try to spawn a hostage (from houses).
+**Spawn schedule:** Enemy vehicle spawn attempt when `FRAME_COUNT AND $2F == 0` (`choplifter.s:4578`) — a bitmask, producing a non-uniform 16/48-frame alternating cadence, **not** a fixed 47-frame period. Hostage emergence attempt when `FRAME_COUNT AND $03 == 0` (`choplifter.s:4572`) — every **4** frames. (Corrected: earlier text said "every 47 frames" and "every 3 frames," inherited from incorrect in-source comments.)
 
 | Level | Tanks | Jets | Aliens |
 |---|---|---|---|
@@ -243,12 +245,12 @@ Recommended build sequence (each step is playable before moving to the next):
 
 These are what make Choplifter feel like Choplifter:
 
-- **The turn animation** — chopper rotates through a multi-frame sequence when changing direction; you cannot fire during a turn. This is iconic.
+- **The turn animation** — chopper rotates through a multi-frame sequence when changing direction. **Firing is permitted during the turn** — the shooting gate (`choplifter.s:877–890`) checks only airborne/dying/5-shot-cap, never turn state; bullet angle and gravity vary with turn state (see DESIGN.md §7). This is iconic.
 - **The hover physics** — the chopper has real momentum and drift. It does not stop instantly.
 - **Ground depth layers** — tanks appear on different "planes" at different depths, creating a pseudo-3D battlefield. Use `z_index` + subtle Y-position offset per depth layer.
 - **Hostages getting shot** — tanks and jets can kill hostages on the ground. Houses can be set on fire.
 - **5-bullet cap** — player cannot fire until a bullet leaves the screen.
-- **Gravity** — chopper will fall if you cut thrust. Y acceleration = $08 normally, $0F at full thrust.
+- **Gravity** — chopper will fall if you cut thrust. `ZP_ACCELY` holds a **table index**, not a magnitude: index `$08` (normal gravity) → −2 unit/frame, index `$0F` (full thrust) → +6 unit/frame, via `integrateAccelerationAccelYTable` (`choplifter.s:5266`). Do not treat `$08`/`$0F` as accelerations.
 - **No score** — don't add points. Stick to the hostage counters.
 
 ### 4.4 Modern Enhancements (Optional)
@@ -319,13 +321,13 @@ These numeric values from the source are the result of careful tuning — preser
 | Max bullets | 5 | Player shots on screen |
 | Sorties | 3 | Lives |
 | Win condition | 64 rescues | All hostages |
-| Loss condition | 64 killed | OR 0 sorties |
-| Gravity acceleration | `$08` (8) | Applied each frame to Y vel |
-| Full thrust | `$0F` (15) | Max upward acceleration |
+| Loss condition | `TOTAL_RESCUES + HOSTAGES_KILLED == 64` | OR 0 sorties (win check runs first) |
+| Gravity index | `$08` (8) → −2/frame | Index into Y-accel table, not a magnitude |
+| Full thrust index | `$0F` (15) → +6/frame | Index into Y-accel table, not a magnitude |
 | Turn frames | -5 to +5 | 11 animation frames for rotation |
-| Spawn interval | every 47 frames | Enemy vehicle attempt |
-| Hostage spawn | every 3 frames | House release attempt |
-| CURR_LEVEL max | 7 | Difficulty ceiling |
+| Spawn interval | `FRAME_COUNT AND $2F` | Bitmask; non-uniform 16/48-frame cadence, not 47 |
+| Hostage spawn | `FRAME_COUNT AND $03` | Every 4 frames |
+| CURR_LEVEL max | 3 (Mode 1); 7 (Mode 2/3) | Source caps Mode 1 at 3 |
 
 ---
 
