@@ -4,6 +4,8 @@
 > **Reference:** [blondie7575/ChoplifterReverse](https://github.com/blondie7575/ChoplifterReverse) — full annotated 6502 disassembly of the 1982 original  
 > See also: [REVERSE_ENGINEER_ANALYSIS.md](REVERSE_ENGINEER_ANALYSIS.md)
 
+> **Implementation note — reading `zeropage.s`:** Comments on ZP variables often describe the *state values or indices* stored in the variable, not physical magnitudes. For example, `ZP_ACCELY: $08 = Normal gravity, $0f = Full thrust up` means those are the values written into ZP_ACCELY to select table entries — not acceleration in units/frame². Always trace ZP variables through their lookup tables in `choplifter.s` before treating a comment value as a constant. This pattern caused several errors in `REVERSE_ENGINEER_ANALYSIS.md` that were inherited here; all known cases are corrected in this document.
+
 ---
 
 ## 1. Game Overview
@@ -21,7 +23,7 @@ A faithful-but-modernized reimplementation of Dan Gorlin's *Choplifter* (1982, B
 3. Land near hostage buildings; hostages run out and board automatically
 4. Return right to base; they disembark on landing
 5. Difficulty increases after each successful rescue run
-6. Repeat until all 64 hostages are rescued (win) or 64 are killed / 3 lives exhausted (loss)
+6. Repeat until all 64 hostages are rescued (win) or any hostage is killed when `TOTAL_RESCUES + HOSTAGES_KILLED` reaches 64 / 3 lives exhausted (loss)
 
 > **Note:** The player can fly freely in both directions at any time. The left/right orientation is the intended rescue route, not a restriction.
 
@@ -33,14 +35,18 @@ Faithful to the original — **no score**.
 
 | Condition | Trigger |
 |---|---|
-| **Victory** | 64 total hostages rescued |
-| **Loss — hostages** | 64 hostages killed |
+| **Victory** | `TOTAL_RESCUES == 64` (all 64 hostages rescued) |
+| **Loss — hostages** | `TOTAL_RESCUES + HOSTAGES_KILLED == 64` while victory condition unmet — i.e. all 64 hostages are accounted for and at least one was killed |
 | **Loss — lives** | 3 sorties (lives) used up |
+
+> **Important:** There are exactly 64 hostages across all waves. The player must rescue **every single one**. Any kill makes a perfect run impossible — the game ends the moment the last unrescued hostage dies. "64 kills needed to lose" is incorrect; even one kill can end the game.
 
 The counters displayed to the player:
 - Rescued (total)
 - Killed (total)
 - On board (current sortie)
+
+> **Hostages on board when chopper dies:** Carried hostages (`HOSTAGES_LOADED`) are counted as killed on chopper death — they add to `HOSTAGES_KILLED` and thus count toward the loss condition.
 
 ---
 
@@ -52,7 +58,7 @@ The counters displayed to the player:
 | **Jet** | 1+ | Flies at altitude; fires forward missiles and drops bombs; can attack from behind on higher levels |
 | **Alien** | 2+ | UFO saucer that actively hunts the player; accelerates toward chopper on both axes (max VX ±5, max VY ±1); plays crackling audio keyed to animation frame; fires tank-shell-type projectiles downward at level 3+ (random spread, only at lower altitudes); despawns if player gets too far away on X; collides with and destroys the chopper on contact |
 
-Max simultaneous: 4 tanks, 4 jets, 4 aliens.
+**Entity slot count:** 4 tanks, 4 jets, 4 aliens (entity table array sizes). **Mode 1 gameplay cap:** 2 tanks, 2 jets, 2 aliens at level 3 (see §4.1 spawn rate tables). The slot arrays are an engine limit; the spawn rate tables govern how many actually appear.
 
 **Alien animation detail:** Saucer has two composited layers — a static body and a sliding mid-section that cycles through 3 frames. The mid-section position jitters by 1px on odd frames, creating a flickering energy-ring effect. The `ENTITY_DIR` field is reused as the mid-section animation frame counter (0–2) rather than direction.
 
@@ -65,8 +71,8 @@ Max simultaneous: 4 tanks, 4 jets, 4 aliens.
 **Mode 2 / Mode 3 (enhanced):** Level cap is extended to 7, enabling the full biome progression. Levels 4–7 use the same enemy caps as level 3 but add tuned aggression, spawn rate adjustments, and biome transitions.
 
 **Spawn schedule (from source):**
-- Enemy vehicle spawn attempt: **every 47 frames** (~0.78 s at 60 fps)
-- Hostage emergence attempt: **every 3 frames** (~0.05 s at 60 fps)
+- Enemy vehicle spawn attempt: `FRAME_COUNT AND $2F == 0` — fires when bits 0,1,2,3,5 of the 8-bit frame counter are all zero. This produces a **non-uniform 16/48-frame alternating cadence** (~8 attempts per 256-frame cycle), not a fixed period. The value $2F is a bitmask, not a divisor; "every 47 frames" is a misreading of the source comment.
+- Hostage emergence attempt: **every 4 frames** (`FRAME_COUNT AND $03 == 0`). Note: the original source comment incorrectly says "every three frames" — the code is `and #$03` which fires at frames 0, 4, 8, ...
 
 **Max simultaneous enemies per level (faithful values from source):**
 
@@ -80,16 +86,18 @@ Max simultaneous: 4 tanks, 4 jets, 4 aliens.
 
 Levels 4–7 retain the same caps as level 3. Mode 2/3 difficulty tuning at those levels is via aggression, fire rate, and biome visual escalation — not more simultaneous units.
 
+**Hostage wave structure:** `MAX_HOSTAGES = 16` (constant in source). The game runs 4 waves of 16 hostages, for 64 total. Cumulative counters (`TOTAL_RESCUES`, `HOSTAGES_KILLED`) track across all waves. Houses are not reset between sorties — only a new wave spawns when a rescue batch is delivered to base.
+
 ### 4.2 Entity Parameters
 
 Values extracted from the original source; port should match these as a baseline before any tuning:
 
 | Entity | Key Parameters |
 |---|---|
-| Tank | Patrols on a random depth plane; cannon aims at chopper X/Y each frame; fires at variable intervals based on player proximity |
+| Tank | Patrols on a random depth plane; cannon aims at chopper X/Y each frame; fires at variable intervals based on player proximity. **Known source bug (Mode 1 must replicate):** `ENTITY_X_H` (high byte of tank X position) is always set to 0 — tanks always spawn on X-page 0 regardless of player position. |
 | Jet | Spawns above chopper altitude; X-velocity driven by bank-angle table (barrel-roll animation ↔ velocity); fires missiles forward, drops bombs on proximity |
 | Alien | Chase acceleration toward player each frame; max VX ±5 px/frame, max VY ±1 px/frame; **hover damp:** when the saucer body is off-screen or mid-animation cycle resets, `ENTITY_VY` is zeroed to level off flight (prevents dead-reckoning straight at the player); fires downward shells at level 3+ only when chopper is below a threshold altitude; despawns if Δx to player exceeds ~2 screens |
-| Player bullet | 5 max on screen simultaneously; simple horizontal velocity |
+| Player bullet | 5 max on screen simultaneously; velocity and gravity keyed to `ZP_TURN_STATE` — bullets fire at different angles during turns (see §7 Bullet Trajectory) |
 | Tank shell | Ballistic arc (gravity applied each frame) |
 | Jet missile | Constant horizontal velocity, level flight |
 | Jet bomb | Gravity drop from jet altitude |
@@ -117,7 +125,7 @@ Runtime rebinding will be supported for keyboard/controller on desktop, saved to
 | `fire` | Fire a bullet (max 5 on screen) |
 | `pause` | Pause / unpause |
 
-> **Note:** `face_*` actions lock firing input during the turn animation, matching original behavior. The chopper's logical facing and its animation state are tracked separately.
+> **Note:** `face_*` actions do **not** lock firing. The player can fire during a turn; bullet angle and gravity vary with `turn_state` (see §7 Bullet Trajectory). `logical_face` flips instantly on `face_*` input; `turn_state` animates toward the new facing independently.
 
 ### 5.3 Keyboard + Mouse
 
@@ -187,6 +195,10 @@ The game ships with three selectable visual modes. All three run on the same und
 | 1 | **Retro** | ~280×192 logical | Authentic Apple II, integer-upscaled | v0.1 target |
 | 2 | **Modern Pixel Art** | 480×270 | Full-color pixel art, detailed animation | v0.2–0.4 |
 | 3 | **Hi-Res** | 1080p+ | Painterly / 3D-lit 2D (Godot 4 renderer) | v2.0 |
+
+**Mode 1 is always a faithful port — bugs and all. No enhancements.**
+
+Modes 2 and 3 present a **Gameplay Variant** picker before the sortie banner, offering three tiers of enhancement (Standard / Director's Cut / Reimagined). See [ENHANCED_GAMEPLAY.md](ENHANCED_GAMEPLAY.md) for the full specification.
 
 ### 6.2 Mode 1 — Retro (Authentic Apple II)
 
@@ -307,29 +319,55 @@ Faithful to the original values extracted from the reverse-engineer:
 
 | Parameter | Original Value | Notes |
 |---|---|---|
-| Gravity (Y accel) | 8 units/frame² | Always pulling chopper down |
-| Max thrust (Y accel) | 15 units/frame² | Full stick up |
-| Turn animation frames | −5 to +5 (11 frames) | Cannot fire during turn |
+| Y acceleration model | `integrateAccelerationAccelYTable` (16-entry signed byte table) | See table below — do NOT use simple constant values |
+| Gravity index (`ZP_ACCELY`) | 8 (index into table) → **−1 unit/frame** applied to velocity | Neutral stick / no thrust |
+| Full thrust index (`ZP_ACCELY`) | 15 (index into table) → **+6 units/frame** applied to velocity | Full stick up |
+| Turn animation frames | −5 to +5 (11 states) | Firing IS permitted during turns; bullet angle varies |
 | Max player bullets | 5 on screen simultaneously | |
 | One-hit kill | Yes | No health bar |
 
-Physics will be implemented in `_physics_process()` using `CharacterBody2D`. The 16-bit fixed-point velocity model from the original will be replicated as floating-point in Godot (equivalent behavior, easier to work with).
+**Y acceleration table** (`integrateAccelerationAccelYTable`, source `choplifter.s:5266`):
+
+| `ZP_ACCELY` index | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Accel (signed) | −10 | −9 | −8 | −7 | −6 | −5 | −4 | −3 | −2 | −1 | 0 | +1 | +2 | +3 | +4 | +6 |
+
+> **Implementation warning:** The `zeropage.s` comment `$08 = Normal gravity, $0f = Full thrust up` describes the *index values* stored in `ZP_ACCELY`, not acceleration magnitudes. "$08" and "$0F" are table indices, not units/frame². Earlier versions of this doc transcribed them incorrectly as "8 units/frame²" and "15 units/frame²". Use the table above.
+
+Physics will be implemented in `_physics_process()` using `CharacterBody2D`. For Mode 1, replicate the 16-bit fixed-point velocity integration verbatim (including the `>>8` velocity-to-position shift), then optionally refactor to float. Approximating directly in float risks losing the characteristic momentum feel.
 
 **Turn state machine detail:**
 - `turn_state` integer tracks −5 to +5 (11 states); 0 = facing camera, negative = left, positive = right
-- `logical_face` is a separate boolean (left/right) that flips instantly on `face_*` input
+- `logical_face` is a separate boolean (left/right) that flips **instantly** on `face_*` input (`CHOP_FACE` source variable)
 - Animation frame is driven by `turn_state`, not `logical_face`
-- Player cannot fire while `|turn_state| > 0` (turning in progress)
-- `turn_state` increments/decrements one step per frame toward the target state
+- Player **can fire at any time** including during a turn (no turn-state-based fire lock)
+- `turn_state` advances toward target at **variable speed**: 2 steps/frame when `|target − current| >= 2`, 1 step/frame when `|target − current| == 1`. A full −5 → +5 turn takes 5 frames.
+
+**Bullet trajectory during turns** (`bulletGravityTable`, source `choplifter.s:7260`):
+
+Bullets fire from the chopper front at an angle determined by `|turn_state|` (0 = fully sideways, 5 = fully toward camera). As the chopper turns toward camera, bullets arc downward:
+
+| `|turn_state|` | 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
+| Bullet gravity (signed) | −2 | −2 | −1 | −1 | −1 | 0 |
+
+`turn_state = 0` (fully sideways) = horizontal shot with slight upward trajectory. `turn_state = ±5` (fully camera-facing) = near-vertical downward drop. The `bulletVelocityTable` (`choplifter.s:4743`) maps turn state to the lateral velocity component.
+
+**Landing physics (Mode 1 — source values):**
+- `LAUNCHTHRESH`: minimum upward Y velocity required to leave the ground (become airborne)
+- `MIN_VY`: maximum downward velocity for a safe landing; landing above this speed is treated as a crash
+- `bounceThrustState`: thrust state applied on bounce (chopper pushed back up if landing velocity exceeds threshold)
+
+These values must be extracted from `choplifter.s` and replicated exactly — they define the characteristic "floaty-but-precise" landing feel.
 
 ---
 
 ## 8. World & Rendering
 
 - **Target resolution:** 480×270 (Mode 1 logical: 280×192 upscaled; Mode 2: native 480×270)
-- **Scroll:** Horizontal only. Scroll position tracks a **lead offset ahead of the chopper** based on velocity direction — not a symmetric dead zone. The lead is asymmetric: ~70 px of lead when flying left, ~210 px when flying right (matching the original `SCROLL_LEAD_L = $46`, `SCROLL_LEAD_R = $D2`). The chopper appears roughly 25% from the left edge when flying left, and further from the right edge when flying right. While grounded or flying backwards, the scroll instead clamps to a dead-band around the chopper position.
-- **World width:** One continuous map per sortie, approximately 3–4 screens wide. The original had a single scrolling level that looped.
-- **Parallax:** Mode 1: one mountain layer at 50% (single right-shift, exact source behaviour). Mode 2/3: two layers at 30% and 50% plus a biome background layer.
+- **Scroll:** Horizontal only. Scroll position tracks a **lead offset ahead of the chopper** based on velocity direction — not a symmetric dead zone. The lead is asymmetric: `SCROLL_LEAD_L = $46` (70 px) when flying left, `SCROLL_LEAD_R = $D2` (210 px) when flying right — these are pixel values in the original 280×192 viewport. **Mode 1 mapping:** scale these proportionally to the Godot world-space coordinate system (e.g. if 1 Apple II pixel = N Godot units, multiply both lead values by N). The chopper appears roughly 25% from the left edge when flying left, further from the right edge when flying right. While grounded or flying backwards, the scroll clamps to a dead-band around the chopper position.
+- **World width:** One continuous map per sortie. The original has **hard X bounds** (`BOUNDS_LEFT = $02D0`, `BOUNDS_RIGHT = $1300`) — the chopper's X velocity is zeroed and position is clamped at the edges. The world does **not** loop. The port should implement the same bounds rather than a wrap.
+- **Parallax:** Mode 1: one mountain layer at ~50% (`renderMountains` computes `SCROLLPOS − (SCROLLPOS >> 1)` with `and #$FE` odd-pixel alignment mask). Mode 2/3: two layers at 30% and 50% plus a biome background layer.
 - **Depth layers:** 8 distinct ground planes (z 1–8). Tanks occupy separate planes so they appear at different visual depths simultaneously.
 - **Renderer:** Godot's built-in 2D renderer. `Stretch/Mode = canvas_items`, `Textures/Filter = Nearest` (pixel art).
 - **Ground collision:** Flat ground at a fixed Y. Chopper lands when `position.y >= ground_y − chopper_height`. No terrain height variation (faithful to original).
