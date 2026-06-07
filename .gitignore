@@ -1,4 +1,12 @@
 # ──────────────────────────────────────────────
+# Asset pipeline — working files (not committed)
+# ──────────────────────────────────────────────
+assets/graphics/mode2/_candidates/
+assets/audio/soundfonts/
+src/tools/.env
+src/tools/__pycache__/
+
+# ──────────────────────────────────────────────
 # OS / system files
 # ──────────────────────────────────────────────
 .DS_Store

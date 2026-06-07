@@ -200,6 +200,8 @@ The game ships with three selectable visual modes. All three run on the same und
 
 Modes 2 and 3 present a **Gameplay Variant** picker before the sortie banner, offering three tiers of enhancement (Standard / Director's Cut / Reimagined). See [ENHANCED_GAMEPLAY.md](ENHANCED_GAMEPLAY.md) for the full specification.
 
+**Asset creation** for Modes 2 and 3 (sprites, SFX, music) is fully automated via Python pipeline scripts. See [ASSET_PIPELINE.md](ASSET_PIPELINE.md) for tool stack, setup, and running instructions.
+
 ### 6.2 Mode 1 — Retro (Authentic Apple II)
 
 **The shortcut:** The original sprite binaries (`CHOPGFX`, `CHOPGFXHI`) are included in the reverse-engineer repo. A Python extraction tool at [src/tools/extract_sprites.py](../src/tools/extract_sprites.py) reads these and outputs all 128 named sprites as transparent PNGs.
