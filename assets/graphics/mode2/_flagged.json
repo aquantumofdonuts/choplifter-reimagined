@@ -1,0 +1,222 @@
+{
+  "font_digit_6": {
+    "name": "font_digit_6",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "font_digit_7": {
+    "name": "font_digit_7",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "font_digit_9": {
+    "name": "font_digit_9",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "hud_panel_top": {
+    "name": "hud_panel_top",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "hud_icon_hostage": {
+    "name": "hud_icon_hostage",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "hud_icon_fuel": {
+    "name": "hud_icon_fuel",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "hud_border_horiz": {
+    "name": "hud_border_horiz",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "hud_corner_tl": {
+    "name": "hud_corner_tl",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_jungle_1": {
+    "name": "mountain_jungle_1",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_jungle_2": {
+    "name": "mountain_jungle_2",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_arctic_0": {
+    "name": "mountain_arctic_0",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_arctic_1": {
+    "name": "mountain_arctic_1",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_tropical_0": {
+    "name": "mountain_tropical_0",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_tropical_1": {
+    "name": "mountain_tropical_1",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_tropical_3": {
+    "name": "mountain_tropical_3",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_alien_0": {
+    "name": "mountain_alien_0",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_alien_2": {
+    "name": "mountain_alien_2",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "mountain_alien_3": {
+    "name": "mountain_alien_3",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "ground_jungle": {
+    "name": "ground_jungle",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "ground_arctic": {
+    "name": "ground_arctic",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "house_desert_normal": {
+    "name": "house_desert_normal",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "house_desert_fire": {
+    "name": "house_desert_fire",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "house_jungle_fire": {
+    "name": "house_jungle_fire",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "house_arctic_normal": {
+    "name": "house_arctic_normal",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "house_tropical_fire": {
+    "name": "house_tropical_fire",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "house_alien_normal": {
+    "name": "house_alien_normal",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "base_desert": {
+    "name": "base_desert",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "base_jungle": {
+    "name": "base_jungle",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "base_alien": {
+    "name": "base_alien",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_desert_0": {
+    "name": "fence_tower_desert_0",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_desert_2": {
+    "name": "fence_tower_desert_2",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_desert_3": {
+    "name": "fence_tower_desert_3",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_jungle_1": {
+    "name": "fence_tower_jungle_1",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_jungle_2": {
+    "name": "fence_tower_jungle_2",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_jungle_4": {
+    "name": "fence_tower_jungle_4",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_arctic_0": {
+    "name": "fence_tower_arctic_0",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_arctic_3": {
+    "name": "fence_tower_arctic_3",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_arctic_4": {
+    "name": "fence_tower_arctic_4",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_tropical_1": {
+    "name": "fence_tower_tropical_1",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_tropical_2": {
+    "name": "fence_tower_tropical_2",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_alien_0": {
+    "name": "fence_tower_alien_0",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_alien_1": {
+    "name": "fence_tower_alien_1",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_alien_3": {
+    "name": "fence_tower_alien_3",
+    "flagged": true,
+    "reason": "no_candidates"
+  },
+  "fence_tower_alien_4": {
+    "name": "fence_tower_alien_4",
+    "flagged": true,
+    "reason": "no_candidates"
+  }
+}

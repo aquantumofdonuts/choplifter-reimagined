@@ -84,15 +84,31 @@ def resize_nearest(src: Path, dst: Path, width: int, height: int) -> None:
 
 def quantize_palette(src: Path, dst: Path, palette_path: Path) -> None:
     """
-    Quantize *src* to the Endesga-32 palette using ImageMagick.
-    Transparency is preserved (remap with dithering disabled).
+    Quantize *src* to the Endesga-32 palette using Pillow.
+    Transparency is preserved; dithering is disabled.
+
+    ImageMagick cannot decode .gpl directly, so we use Pillow's quantize
+    with a 'P'-mode palette image built from the parsed GPL colours.
     """
-    _run_im([
-        str(src),
-        "-dither", "None",
-        "-remap", str(palette_path),
-        str(dst),
-    ])
+    colors = load_palette_gpl(palette_path)
+    if not colors:
+        raise RuntimeError(f"No colours parsed from {palette_path}")
+
+    # Build a Pillow palette image (mode 'P')
+    pal_img = Image.new("P", (1, 1))
+    flat: list[int] = []
+    for r, g, b in colors:
+        flat.extend([r, g, b])
+    flat += [0] * (256 * 3 - len(flat))   # pad to 256 entries
+    pal_img.putpalette(flat)
+
+    img = Image.open(src).convert("RGBA")
+    alpha = img.split()[3]
+
+    # Quantize the RGB channels, then restore alpha
+    quantized = img.convert("RGB").quantize(palette=pal_img, dither=0).convert("RGBA")
+    quantized.putalpha(alpha)
+    quantized.save(dst)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
