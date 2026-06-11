@@ -130,7 +130,40 @@ func _update_render_position() -> void:
 	position.y = GROUND_SRC_Y - pos_y
 
 func _handle_input() -> void:
-	# Stub here; Task 10 wires the Input Map actions to accely_index/accelx/facing/fire.
+	if GameState.input_locked or dying:
+		return
+
+	# Facing (logical_face flips instantly; turn_state animates separately)
+	if Input.is_action_just_pressed("face_left"):
+		face_left()
+	elif Input.is_action_just_pressed("face_right"):
+		face_right()
+	elif Input.is_action_just_pressed("face_camera"):
+		face_camera()
+
+	# Vertical: thrust up, descend (required to land — R3-C1), or gravity.
+	if Input.is_action_pressed("thrust_up"):
+		accely_index = FULL_THRUST_INDEX
+	elif Input.is_action_pressed("descend"):
+		accely_index = DESCEND_INDEX
+	else:
+		accely_index = GRAVITY_INDEX
+
+	# Horizontal movement: ramp accelx toward ±5 while held, decay toward 0 when released.
+	# |accelx| indexes ACCEL_X_TABLE (0 = no input, 5 = full deflection).
+	if Input.is_action_pressed("move_right"):
+		accelx = mini(accelx + 1, 5)
+	elif Input.is_action_pressed("move_left"):
+		accelx = maxi(accelx - 1, -5)
+	else:
+		accelx = signi(accelx) * maxi(absi(accelx) - 1, 0)
+
+	# Fire
+	if Input.is_action_just_pressed("fire") and can_fire():
+		_fire_bullet()
+
+func _fire_bullet() -> void:
+	# Stub here; Task 15 implements bullet spawning with the source velocity table.
 	pass
 
 # --- Turn state machine (Task 9, DESIGN.md §7) ---
