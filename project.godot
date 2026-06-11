@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 GameState="*res://src/autoload/GameState.gd"
 Settings="*res://src/autoload/Settings.gd"
 AudioManager="*res://src/autoload/AudioManager.gd"
+SceneTransition="*res://src/autoload/SceneTransition.tscn"
 
 [editor_plugins]
 
