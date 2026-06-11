@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://mainmenu0placeh"]
+[gd_scene load_steps=2 format=3 uid="uid://mainmenu0placeh"]
+
+[ext_resource type="Script" path="res://src/scenes/MainMenu.gd" id="1_mm"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -7,14 +9,88 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_mm")
 
-[node name="Label" type="Label" parent="."]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 60.0
+offset_right = 300.0
+offset_bottom = 140.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 56
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "Main Menu placeholder — Task 21"
+text = "CHOPLIFTER!"
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -110.0
+offset_right = 160.0
+offset_bottom = 130.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 20.0
+offset_right = -40.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="Play" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "Play"
+
+[node name="Settings" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+disabled = true
+text = "Settings"
+
+[node name="Quit" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "Quit"
+
+[node name="ModeLabel" type="Label" parent="Panel"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -44.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "Retro"
+
+[connection signal="pressed" from="Panel/VBox/Play" to="." method="_on_play_pressed"]
+[connection signal="pressed" from="Panel/VBox/Quit" to="." method="_on_quit_pressed"]
