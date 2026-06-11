@@ -59,7 +59,12 @@
   `serialize_field_hostages()` now runs after the 1.0s death wait; SceneTransition.transition_to
   re-entrancy guard (first wins); Chopper dead `death_timer` removed, `hostages_aboard` zeroed in
   die(); test_sortie now exercises die() end-to-end. 58 tests still green.
-- Next step: Task 19b (integration + golden-trace gates), then Phase 11 (Task 20: HUD; Task 21: menus)
+- **Done (Task 19b, b0093e1):** MF1 integration gates — `tests/integration/test_rescue_loop.gd`
+  (boots real World.tscn, full spawn→run→board→deliver loop on live physics frames; enemy spawn
+  scenes nulled in-test: a tank shell would kill the landed chopper and SceneTransition mid-suite)
+  and `tests/integration/test_physics_golden_trace.gd` (thrust/gravity traces + descend-to-land,
+  all via real Input actions). 62 GdUnit4 tests green, runner exit 0.
+- Next step: Phase 11 (Task 20: HUD; Task 21: menus)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
