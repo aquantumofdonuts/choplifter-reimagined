@@ -16,10 +16,15 @@
 - Soundfont gitignored — restore with `cp /usr/share/sounds/sf2/FluidR3_GM.sf2 assets/audio/soundfonts/chiptune.sf2`
 - Do NOT re-run generation (wastes paid Scenario credits). Integration of assets into scenes is still pending at plan positions.
 
-### Godot project — IN PROGRESS
+### Godot project — IN PROGRESS (Phase 0 complete)
 - **Authoritative plan:** `docs/plans/2026-06-07-implementation-plan.md` (round-3 review fixes already merged in, 92c0921; review docs archived under `docs/plans/archive/`)
 - **Plus:** `docs/plans/2026-06-11-meta-game-depth-design.md` (Tasks 37/37b amendments)
-- Next step: Phase 0 (Task 1: project bootstrap) → follow the plan task-by-task with the executing-plans skill
+- **Done:** Tasks 1, 2, 3, 3b, 3c, 3d — project bootstrap (Godot 4.6.3, GdUnit4 v6.1.3 verified
+  headless via `GODOT_BIN=$(which godot) ./addons/gdUnit4/runtest.sh -a tests/`), physics layer
+  names, Fidelity Ledger (`docs/FIDELITY_LEDGER.md`)
+- Placeholder `src/scenes/Boot.tscn` exists so headless runs stay clean — Task 21 replaces it
+- 3c's `test_coordinate_model.gd` deferred into Task 4 (it asserts GameState constants)
+- Next step: Phase 1 (Task 4: GameState autoload) — follow plan task-by-task, executing-plans skill
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
