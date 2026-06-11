@@ -52,7 +52,6 @@ var landed: bool = false       # set by ground check (Task 13)
 var landed_at_base: bool = false
 var grounding: bool = false    # ZP_GROUNDING — ground-intersection latch (Task 13)
 var dying: bool = false
-var death_timer: int = 0
 var hostages_aboard: int = 0
 var active_bullets: int = 0
 var fuel: float = 1.0          # Tier C only; ignored in Mode 1
@@ -263,10 +262,10 @@ func die() -> void:
 	if dying:
 		return
 	dying = true
-	death_timer = 0
 	GameState.on_chopper_death(hostages_aboard)
+	hostages_aboard = 0  # GameState zeroed its loaded count; keep the chopper's copy in sync (HUD reads it)
 	AudioManager.play_sfx("explosion")
-	# Play explosion animation, then emit signal
+	# Hold for DEATH_DURATION so the explosion SFX plays out before the sortie transition.
 	await get_tree().create_timer(DEATH_DURATION).timeout
 	chopper_died.emit()
 

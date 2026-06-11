@@ -4,6 +4,8 @@ extends CanvasLayer
 
 const FADE_DURATION: float = 0.3
 
+var _transitioning := false  # re-entrancy guard: first transition wins, late callers are dropped
+
 # Runtime scale-mode switch (DESIGN.md §11.3): the project default is viewport+integer
 # (pixel-perfect game world), which renders ALL canvas items at 480×270 — including Control
 # UI. Menu scenes therefore run at native resolution instead. This list names the scenes
@@ -23,6 +25,9 @@ func _ready() -> void:
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 func transition_to(scene_path: String) -> void:
+	if _transitioning:
+		return
+	_transitioning = true
 	GameState.input_locked = true
 	await _fade_to(1.0)
 	apply_scale_mode_for(scene_path)
@@ -30,6 +35,7 @@ func transition_to(scene_path: String) -> void:
 	await get_tree().process_frame
 	await _fade_to(0.0)
 	GameState.input_locked = false
+	_transitioning = false
 
 # Public so Boot can apply the menu mode at startup without a transition (Task 21).
 func apply_scale_mode_for(scene_path: String) -> void:

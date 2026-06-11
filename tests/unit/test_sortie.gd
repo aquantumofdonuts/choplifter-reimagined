@@ -5,9 +5,12 @@ func test_death_counts_aboard_as_killed():
 	var chopper: Chopper = preload("res://src/entities/Chopper.tscn").instantiate()
 	add_child(chopper)
 	chopper.hostages_aboard = 3
-	GameState.on_chopper_death(3)
+	# Fire-and-forget: die() awaits a real DEATH_DURATION timer before emitting chopper_died.
+	chopper.die()
+	await chopper.chopper_died
 	assert_int(GameState.hostages_killed).is_equal(3)
 	assert_int(GameState.lives_remaining).is_equal(2)
+	assert_int(chopper.hostages_aboard).is_equal(0)
 	chopper.queue_free()
 	GameState.reset()
 

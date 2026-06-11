@@ -17,6 +17,7 @@ signal victory_achieved  # emitted by HostageManager when TOTAL_HOSTAGES are res
 @onready var hud: CanvasLayer = $HUD
 
 var _frame_count: int = 0  # global frame counter (replicates FRAME_COUNT)
+var _ending: bool = false  # end-state latch: first of {death, victory, loss} wins; freezes the sim
 
 func _ready() -> void:
 	# The ONLY source→pixel scaling in the game: zoom maps source units to screen pixels.
@@ -31,6 +32,8 @@ func _ready() -> void:
 	hostage_manager.restore_field_hostages()  # R3-C3: re-instantiate survivors from the prior sortie
 
 func _physics_process(_delta: float) -> void:
+	if _ending:
+		return  # sortie is over — freeze spawns/hostage ticks so GameState counters stay consistent
 	_frame_count = (_frame_count + 1) & 0xFF  # 8-bit wrap (matches source FRAME_COUNT)
 	_update_camera()
 	spawn_manager.tick(_frame_count)
@@ -57,25 +60,35 @@ func _update_camera() -> void:
 	terrain.update_scroll(int(target_x))  # parallax mountains track the scroll (Task 12 wiring)
 
 func _on_chopper_died() -> void:
+	if _ending:
+		return
 	# victory is signalled separately by HostageManager (World.victory_achieved) — not re-checked here
 	if GameState.is_mission_loss():
 		_start_loss("hostages")
 	elif GameState.is_sorties_loss():
 		_start_loss("sorties")
 	else:
-		# R3-C3: survive the scene reload — serialize field hostages into GameState (the source
-		# hostageTable persists in RAM across deaths; scene nodes do not).
-		hostage_manager.serialize_field_hostages()
+		_ending = true
 		await get_tree().create_timer(1.0).timeout
+		# R3-C3: survive the scene reload — serialize field hostages into GameState (the source
+		# hostageTable persists in RAM across deaths; scene nodes do not). Done AFTER the wait so
+		# the snapshot matches the frozen sim state at the moment of transition.
+		hostage_manager.serialize_field_hostages()
 		SceneTransition.transition_to("res://src/scenes/SortieBanner.tscn")
 
 func _start_victory() -> void:
+	if _ending:
+		return
+	_ending = true
 	GameState.input_locked = true
 	AudioManager.play_sfx("ui_confirm")  # Victory sting placeholder
 	await get_tree().create_timer(3.0).timeout
 	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")
 
 func _start_loss(_reason: String) -> void:
+	if _ending:
+		return
+	_ending = true
 	GameState.input_locked = true
 	await get_tree().create_timer(2.0).timeout
 	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")
