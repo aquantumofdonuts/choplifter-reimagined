@@ -13,73 +13,61 @@ script = ExtResource("1_tr")
 
 [node name="M0a" type="Sprite2D" parent="Mountains"]
 position = Vector2(0, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("2_m0")
 centered = false
 
 [node name="M1a" type="Sprite2D" parent="Mountains"]
 position = Vector2(48, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("3_m1")
 centered = false
 
 [node name="M2a" type="Sprite2D" parent="Mountains"]
 position = Vector2(84, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("4_m2")
 centered = false
 
 [node name="M3a" type="Sprite2D" parent="Mountains"]
 position = Vector2(138, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("5_m3")
 centered = false
 
 [node name="M0b" type="Sprite2D" parent="Mountains"]
 position = Vector2(194, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("2_m0")
 centered = false
 
 [node name="M1b" type="Sprite2D" parent="Mountains"]
 position = Vector2(242, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("3_m1")
 centered = false
 
 [node name="M2b" type="Sprite2D" parent="Mountains"]
 position = Vector2(278, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("4_m2")
 centered = false
 
 [node name="M3b" type="Sprite2D" parent="Mountains"]
 position = Vector2(332, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("5_m3")
 centered = false
 
 [node name="M0c" type="Sprite2D" parent="Mountains"]
 position = Vector2(388, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("2_m0")
 centered = false
 
 [node name="M1c" type="Sprite2D" parent="Mountains"]
 position = Vector2(436, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("3_m1")
 centered = false
 
 [node name="M2c" type="Sprite2D" parent="Mountains"]
 position = Vector2(472, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("4_m2")
 centered = false
 
 [node name="M3c" type="Sprite2D" parent="Mountains"]
 position = Vector2(526, -4)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("5_m3")
 centered = false
 

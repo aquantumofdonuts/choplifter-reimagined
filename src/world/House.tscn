@@ -11,7 +11,6 @@ script = ExtResource("1_hs")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 position = Vector2(0, -5.5)
-scale = Vector2(0.25, 0.25)
 texture = ExtResource("2_tex")
 
 [node name="Hitbox" type="Area2D" parent="."]

@@ -15,6 +15,9 @@ const FULL_THRUST_INDEX: int = 15     # ZP_ACCELY max — target +6
 const DESCEND_INDEX: int = 0          # ZP_ACCELY min — full stick-down, target −10 (R3-C1: required
                                       # to reach MIN_VY and land; gravity alone tops out at −2)
 const VEL_X_CLAMP_HI: int = 0x15      # high-byte clamp ±21 (source cmp #$15 / #$EB)
+const CEILING_ALT: float = 105.0      # BOUNDS_TOP $70 (choplifter.s:4818) minus the $07 ground
+                                      # offset (CHOP_POS_Y ground = $07, zeropage.s:13) — the
+                                      # source clamps Y here and zeroes VY (choplifter.s:5613–5621)
 const VEL_FRAC: int = 256             # velocity is 8.8 fixed point (low byte = fraction)
 const MAX_BULLETS: int = 5
 const TURN_STATES: int = 11           # -5 to +5
@@ -163,6 +166,11 @@ func _clamp_to_world_bounds() -> void:
 	elif pos_x > GameState.SRC_BOUNDS_RIGHT:
 		pos_x = GameState.SRC_BOUNDS_RIGHT
 		vel_x = 0
+	# Ceiling: clamp to top of sky and zero VY, exactly as the source does after applying
+	# velocity (integrateVelocityClampY, choplifter.s:5613–5621).
+	if pos_y > CEILING_ALT:
+		pos_y = CEILING_ALT
+		vel_y = 0
 
 func _update_render_position() -> void:
 	# Node positions are SOURCE units 1:1 (the World Camera2D zoom scales source→screen at render).

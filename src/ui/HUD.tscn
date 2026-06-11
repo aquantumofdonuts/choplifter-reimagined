@@ -68,29 +68,26 @@ text = "00"
 
 [node name="Lives" type="HBoxContainer" parent="Panel"]
 layout_mode = 0
-offset_left = 388.0
-offset_top = 4.0
-offset_right = 474.0
-offset_bottom = 12.0
+offset_left = 352.0
+offset_top = 1.0
+offset_right = 475.0
+offset_bottom = 15.0
 theme_override_constants/separation = 6
 
 [node name="Life1" type="TextureRect" parent="Panel/Lives"]
-custom_minimum_size = Vector2(22, 8)
+custom_minimum_size = Vector2(35, 13)
 layout_mode = 2
 texture = ExtResource("2_life")
-expand_mode = 1
-stretch_mode = 5
+stretch_mode = 2
 
 [node name="Life2" type="TextureRect" parent="Panel/Lives"]
-custom_minimum_size = Vector2(22, 8)
+custom_minimum_size = Vector2(35, 13)
 layout_mode = 2
 texture = ExtResource("2_life")
-expand_mode = 1
-stretch_mode = 5
+stretch_mode = 2
 
 [node name="Life3" type="TextureRect" parent="Panel/Lives"]
-custom_minimum_size = Vector2(22, 8)
+custom_minimum_size = Vector2(35, 13)
 layout_mode = 2
 texture = ExtResource("2_life")
-expand_mode = 1
-stretch_mode = 5
+stretch_mode = 2

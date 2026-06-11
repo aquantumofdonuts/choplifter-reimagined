@@ -14,7 +14,8 @@ func after_test() -> void:
 func test_thrust_trace_through_physics_process() -> void:
 	var chopper := preload("res://src/entities/Chopper.tscn").instantiate()
 	add_child(chopper)
-	chopper.pos_y = 100.0   # airborne so ground checks don't interfere
+	chopper.pos_y = 20.0    # airborne, but low enough that 5 thrust frames (+24 units) stay
+	                        # under the source ceiling clamp at 105, which zeroes VY
 	chopper.vel_y = 0
 
 	Input.action_press("thrust_up")   # simulate holding thrust through the real input path

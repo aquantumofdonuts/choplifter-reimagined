@@ -53,6 +53,18 @@ func test_x_velocity_clamped_to_high_byte_0x15():
 	assert_int(c.vel_x_hi()).is_greater(0)
 	c.queue_free()
 
+func test_ceiling_clamps_altitude_and_zeroes_vy():
+	# BOUNDS_TOP $70 minus the $07 ground offset = 105; source zeroes VY on clamp
+	# (integrateVelocityClampY, choplifter.s:5613–5621).
+	var c := _new_chopper()
+	c.pos_y = 104.0
+	c.vel_y = 6 << 8
+	c.integrate_velocity()
+	c._clamp_to_world_bounds()
+	assert_float(c.pos_y).is_equal(105.0)
+	assert_int(c.vel_y).is_equal(0)
+	c.queue_free()
+
 func test_x_friction_decays_velocity_when_centered():
 	# With no joystick input (accelx 0, ACCEL_X_TABLE[0]=0), friction VELX -= VELX>>4 decays to 0.
 	var c := _new_chopper()
