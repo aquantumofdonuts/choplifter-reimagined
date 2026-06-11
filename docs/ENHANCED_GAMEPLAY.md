@@ -249,9 +249,12 @@ The grade is shown on a mission-end card. No leaderboard, no online component �
 
 **End-of-wave summary card** (shown after each batch delivery):
 - Hostages this wave: rescued / killed
-- Time for this wave
+- Time for this wave, with PB split comparison (§5.5): `Wave 2 — 4:12 (PB 4:06, +0:06)`. The +/− sign is the primary ahead/behind signal (colorblind-safe); green/red coloring is secondary. If no PB exists for this variant × mode slot, or the PB record predates split storage, show the wave time alone.
 - Running grade for the full run
+- Grade ceiling: "S rank still in reach" while the best achievable grade is S, otherwise "Best possible: A/B/C"
 - Brief 2-second display, then auto-continues
+
+**Grade ceiling:** the best achievable grade is the §5.1 grade table evaluated against *current* casualties and sorties (both only ever increase), with S additionally requiring elapsed time still under the S target time. Implemented as a pure function `best_achievable_grade(casualties, sorties, elapsed) -> Grade` sharing the same threshold constants as final grading. Computed at card render time — no cached state, no signals, no in-game HUD presence.
 
 ### 5.2 Scatter on Death
 
@@ -328,10 +331,37 @@ Saved to `user://highscores.cfg`. One record per variant × mode combination (6 
 | Best casualty count | Int |
 | Best sorties used | Int |
 | Date of best run | ISO date string |
+| Best-run wave splits | Array[float] (optional; 4 cumulative wave-boundary times) |
 
 Records are displayed on the mission-end card ("Personal best: A — 4:32"). No online component.
 
+**Wave splits:** `best_time_splits` holds the 4 cumulative wave-boundary times from the run that set `best_time` — written only when a completed victory beats the slot's best time, so splits always describe one coherent run (not a stitched composite of best individual waves). The end-of-wave summary card (§5.1) compares the current run's cumulative elapsed time against the PB split at the same boundary. The field is optional on read (records written before this feature lack it; ConfigFile tolerates missing keys — no migration), always written on new PBs.
+
+**Run state:** `GameState.run_splits: Array[float]` is cleared at run start and appended at each wave delivery. It lives in the GameState autoload, so it survives `World.tscn` reload-on-death.
+
 **Corruption handling:** If `highscores.cfg` fails to parse, silently reset records to default (no record). Log warning to Godot output. Do not crash.
+
+### 5.6 Career Stats & Records Screen
+
+Lifetime counters tracked across **all variants** (Standard, Director's Cut, Reimagined) and **all modes, including Retro Mode 1** — career tracking is pure bookkeeping in the shared `GameState`/`Records` autoloads with no gameplay, HUD, or variant-check presence in the simulation, so it violates neither the Tier C containment rule nor the §7 "Mode 1 is never touched" invariant. **Never incremented in demo/attract mode** (`not GameState.demo_mode` guard — demo auto-play delivers hostages and would otherwise inflate stats).
+
+| Counter | Incremented when |
+|---|---|
+| `total_hostages_rescued` | Each batch delivered to base |
+| `total_hostages_killed` | Each casualty |
+| `total_sorties_flown` | Each sortie launch |
+| `total_runs` | Run start |
+| `total_victories` | Victory |
+| `perfect_runs` | Victory with 0 casualties (any sorties; variant-agnostic, distinct from S rank) |
+| `total_playtime_seconds` | In-game unpaused time |
+
+**Storage:** separate `user://career.cfg` — not `highscores.cfg` — so the corruption-reset of one file can never wipe the other. Writes go to a temp file then rename (best-effort atomicity; a crash mid-write must not zero lifetime stats). Same corruption rule as §5.5: failed parse → reset, log warning, never crash.
+
+**Flush points:** run start, each wave delivery, run end (victory / loss / quit-to-menu — all exits route through the Main Menu hub). In-memory counters between flushes; a hard crash loses at most the current run's increments. Concurrent instances are last-write-wins (accepted for a single-player game).
+
+**Records screen:** slide-in panel in `MainMenu.tscn`, same pattern as `SettingsPanel.tscn`. Section 1: Career (the table above, formatted). Section 2: Personal Bests — the 6 variant × mode slots showing best grade, time, casualties, sorties, and date ("—" when no record). Read-only; reads both cfg files on open. The mission-end card stays run-focused — career totals appear only here.
+
+**Ownership:** a new `Records.gd` autoload owns both cfg files (load, flush, atomic write, corruption handling). `GameState` keeps run-scoped state (`run_splits`, casualty/sortie counters) and calls into `Records` at flush points.
 
 ---
 
@@ -378,8 +408,10 @@ var scatter_on_death: bool = true    # Always true in Reimagined; not a toggle
 | `Tank.gd` / `Jet.gd` | — | Fire telegraph | — |
 | `Hostage.gd` | Spawn interval fix | — | Scatter on death (STRANDED state) |
 | `HUD.gd` | Death readout, loss headroom, scroll fix | Capacity display | Fuel gauge, stranded indicator, grade display |
-| `GameState.gd` | — | World continuity on death | Variant enum, fuel_enabled, scatter state |
-| `World.tscn` | — | End-of-wave summary | Mission rating card, persistent records |
+| `GameState.gd` | — | World continuity on death | Variant enum, fuel_enabled, scatter state, run_splits |
+| `World.tscn` | — | End-of-wave summary | Mission rating card, grade ceiling, PB split comparison, persistent records |
+| `Records.gd` (new autoload) | Career counters (all variants/modes) | Career counters | Career counters, PB records + splits |
+| `MainMenu.tscn` | Records panel (career stats) | Records panel | Records panel (career + 6 PB slots) |
 
 ### 6.4 Roadmap Placement
 

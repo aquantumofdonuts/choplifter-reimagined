@@ -40,7 +40,7 @@ After all criteria pass, perform a final audit using the "full-review" skill.
 | **v0.2** | Mode 1 polish | Tier A bug fixes, SFX pipeline, Mode 1 audio wired |
 | **v0.3** | Mode 2 start | Variant picker UI, Desert biome, Scenario style model trained |
 | **v0.4** | Mode 2 full | All 5 biomes, Tier B mechanics, music pipeline |
-| **v0.5** | Tier C | Scatter-on-death, fuel system, mission rating, records |
+| **v0.5** | Tier C | Scatter-on-death, fuel system, mission rating + grade ceiling, PB wave splits, career stats + Records screen |
 | **v1.0** | Polish | Web export, touch controls, fuel system tuned, full review |
 | **v2.0** | Mode 3 | Hi-Res assets, Godot 4 3D renderer for 2D gameplay |
 
@@ -4687,14 +4687,38 @@ git commit -am "feat(tier-c): fuel system — depletion, emergency landing refil
 
 ---
 
-### Task 37: Mission rating (Tier C)
+### Task 37: Mission rating, grade ceiling & PB splits (Tier C)
 
-`ENHANCED_GAMEPLAY.md §5.1`: S/A/B/C/F grade computed from casualties, sorties, and time. Shown on mission-end card. Saved to `user://highscores.cfg`.
+`ENHANCED_GAMEPLAY.md §5.1, §5.5` (see also `docs/plans/2026-06-11-meta-game-depth-design.md`): S/A/B/C/F grade computed from casualties, sorties, and time. Shown on mission-end card. Saved to `user://highscores.cfg`.
 
-**Files:** `src/scenes/MissionEnd.gd` / `MissionEnd.tscn`, `src/autoload/GameState.gd`
+**Files:** `src/scenes/MissionEnd.gd` / `MissionEnd.tscn`, `src/autoload/GameState.gd`, `src/autoload/Records.gd` (new)
+
+1. Grade table + pure function `best_achievable_grade(casualties, sorties, elapsed) -> Grade` sharing the grading threshold constants
+2. End-of-wave summary card: grade ceiling line ("S rank still in reach" / "Best possible: A/B/C"), computed at card render time — no cached state or signals
+3. `GameState.run_splits: Array[float]` — cleared at run start, appended at each wave delivery (survives World.tscn reload-on-death by living in the autoload)
+4. PB record slots gain optional `best_time_splits` field, written only when a victory beats the slot's best time; summary card shows `Wave 2 — 4:12 (PB 4:06, +0:06)` with +/− sign as primary signal, color secondary; fall back to plain wave time when no PB or pre-feature record
+5. `Records.gd` autoload owns highscores.cfg load/save and §5.5 corruption handling
 
 ```bash
-git commit -am "feat(tier-c): mission rating — S/A/B/C/F grade on mission-end card"
+git commit -am "feat(tier-c): mission rating — grade + ceiling indicator + PB wave splits"
+```
+
+---
+
+### Task 37b: Career stats & Records screen
+
+`ENHANCED_GAMEPLAY.md §5.6`: lifetime counters in `user://career.cfg`, Records panel in Main Menu. Tracked in **all variants and all modes** (not Tier C-gated), so this task is independent of the variant system — but it lands here because the Records panel also displays the Task 37 PB slots.
+
+**Files:** `src/autoload/Records.gd`, `src/autoload/GameState.gd`, `src/scenes/MainMenu.tscn`, `src/ui/RecordsPanel.gd` / `RecordsPanel.tscn` (new, modeled on SettingsPanel)
+
+1. Career counters per §5.6 table; every increment guarded by `not GameState.demo_mode` (demo attract loop delivers hostages — must not inflate stats)
+2. Flush points: run start, each wave delivery, run end (victory / loss / quit-to-menu)
+3. `career.cfg` written via temp file + rename (crash mid-write must not zero lifetime stats); failed parse → reset + warning, never crash
+4. RecordsPanel: Career section + Personal Bests section (6 variant × mode slots, "—" when empty); read-only, reads both cfg files on open
+5. `perfect_runs` = victory with 0 casualties, any sorties — variant-agnostic, distinct from S rank
+
+```bash
+git commit -am "feat(meta): career stats (career.cfg) + Records panel in main menu"
 ```
 
 ---
