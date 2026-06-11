@@ -49,11 +49,13 @@ After all criteria pass, perform a final audit using the "full-review" skill.
 > now applies to *integrating* Mode 2 assets into the game (Task 29 onward), which still must wait
 > for v0.1 to be playable end-to-end.
 
-> **Execution status (2026-06-11):** Task 3 (Mode 1 sprite extraction, 128 PNGs), Task 23 (SFX
-> pipeline, 20 OGGs), and the Task 30 pipeline scripts/spec are **already complete and committed**
-> (e71e257, a742dce, 690ea2e); Mode 2 sprite generation is **in flight** (117/161 via the Scenario
-> REST API). Executors must treat Tasks 3, 23, and the committed parts of Task 30 as done — do not
-> re-run extraction or generation; doing so wastes paid credits and can clobber in-flight output.
+> **Execution status (2026-06-11, updated):** All asset generation is **complete and committed**:
+> Task 3 (Mode 1 sprite extraction, 128 PNGs — e71e257), Task 23 (SFX pipeline, 21 OGGs — e71e257),
+> Task 30 pipeline scripts/spec + all 161/161 Mode 2 sprites (a742dce, 690ea2e, 880fc8d), and the
+> Task 34 music pipeline output (18 tracks — fbf3bdc). Executors must treat the asset-generation
+> portions of Tasks 3, 23, 30, and 34 as done — do not re-run extraction or generation; doing so
+> wastes paid Scenario credits. The *integration* portions (wiring assets into scenes, variant
+> picker, music-state logic) remain to be done at their plan positions.
 
 ---
 
@@ -76,12 +78,20 @@ In `Project → Project Settings`:
 ```
 Display/Window/Size/Viewport Width = 480
 Display/Window/Size/Viewport Height = 270
-Display/Window/Stretch/Mode = canvas_items
+Display/Window/Stretch/Mode = viewport
 Display/Window/Stretch/Aspect = keep
+Display/Window/Stretch/Scale Mode = integer
 Rendering/Textures/Canvas Textures/Default Texture Filter = 0  (Nearest)
 Application/Run/Main Scene = res://src/scenes/Boot.tscn
 Physics/Common/Physics Ticks Per Second = 60
 ```
+
+> **Stretch mode is `viewport` + `integer` (DESIGN.md §Appendix, commit 55633ee — authoritative):**
+> pixel-perfect on high-DPI mobile screens; `canvas_items` would blur sub-pixel edges. Consequence:
+> ALL canvas items, including `Control` UI, render at 480×270 while this mode is active. Menu scenes
+> therefore switch `get_tree().root.content_scale_mode` to `DISABLED` (native res) at runtime, and
+> game scenes restore `VIEWPORT`+`INTEGER`. `SceneTransition.transition_to()` (Task 7) owns the
+> switch, keyed on destination scene path. See DESIGN.md §11.3.
 
 > **Physics determinism:** All source-faithful entity logic MUST live in `_physics_process`, not
 > `_process`. The locked 60Hz tick is the emulation substrate — Mode 1 fidelity is void otherwise.

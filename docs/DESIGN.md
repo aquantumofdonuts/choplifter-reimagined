@@ -517,7 +517,7 @@ Four autoloads are never unloaded:
 
 ### 11.3 Main Menu
 
-**Visual style:** Always modern and hi-res regardless of selected game mode. The menu runs at the native display resolution using Godot `Control` nodes — these are unaffected by the pixel-art `Stretch` and `Nearest` filter settings applied to the game world.
+**Visual style:** Always modern and hi-res regardless of selected game mode. The menu runs at the native display resolution using Godot `Control` nodes. Because the project-level stretch mode is `viewport` (which renders *all* canvas items, including `Control` UI, at 480×270), menu scenes switch the scale mode at runtime: on entering a menu scene, set `get_tree().root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED` (native resolution); on entering a game scene, restore `CONTENT_SCALE_MODE_VIEWPORT` with `CONTENT_SCALE_STRETCH_INTEGER`. `SceneTransition.transition_to()` owns this switch, keyed on the destination scene path, so no individual scene can forget it.
 
 **Background:** A `SubViewport` renders a slow-scrolling animated game world preview (a biome appropriate to the selected mode, e.g. desert at dusk). The live world plays silently in the background at low speed with no entities. The menu UI panels overlay it with translucent dark backing.
 
