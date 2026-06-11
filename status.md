@@ -54,6 +54,11 @@
   hostages → SortieBanner → World reload), SortieBanner scene (2s auto-advance), MainMenu.tscn
   is a PLACEHOLDER until Task 21. `_check_end_conditions()` exists but is unwired until HUD
   tasks (per plan). 58 GdUnit4 tests green.
+- **Task 19 review follow-up (38fa301):** World `_ending` latch freezes the sim once any end state
+  starts (fixes post-death spawn desync of GameState counters + victory/death race);
+  `serialize_field_hostages()` now runs after the 1.0s death wait; SceneTransition.transition_to
+  re-entrancy guard (first wins); Chopper dead `death_timer` removed, `hostages_aboard` zeroed in
+  die(); test_sortie now exercises die() end-to-end. 58 tests still green.
 - Next step: Task 19b (integration + golden-trace gates), then Phase 11 (Task 20: HUD; Task 21: menus)
 
 ## Key settled decisions
