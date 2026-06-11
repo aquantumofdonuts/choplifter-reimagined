@@ -16,7 +16,7 @@
 - Soundfont gitignored — restore with `cp /usr/share/sounds/sf2/FluidR3_GM.sf2 assets/audio/soundfonts/chiptune.sf2`
 - Do NOT re-run generation (wastes paid Scenario credits). Integration of assets into scenes is still pending at plan positions.
 
-### Godot project — IN PROGRESS (Phases 0–2 complete)
+### Godot project — IN PROGRESS (Phases 0–4 complete)
 - **Authoritative plan:** `docs/plans/2026-06-07-implementation-plan.md` (round-3 review fixes already merged in, 92c0921; review docs archived under `docs/plans/archive/`)
 - **Plus:** `docs/plans/2026-06-11-meta-game-depth-design.md` (Tasks 37/37b amendments)
 - **Done:** Tasks 1, 2, 3, 3b, 3c, 3d — project bootstrap (Godot 4.6.3, GdUnit4 v6.1.3 verified
@@ -33,7 +33,12 @@
   face_left/face_right — plan's double-assignment of LB resolved). 26 GdUnit4 tests green.
 - Hitbox masks are BITMASKS: plan's "layers 3|5|7" = collision_mask 84 (Chopper.tscn)
 - assets/store/ is the maintainer's side-work (store listings) — leave untracked; has .gdignore
-- Next step: Phase 3 (Task 11: World scene + camera scroll; Task 12: parallax mountains)
+- **Done (Phases 3–4):** Tasks 11–13 — World scene (source-unit camera, asymmetric 70/210 lead,
+  R3-M1 clamps, R3-C2 vertical framing), Terrain parallax (plan sign bug fixed: layer at
+  scroll − compute%period, NOT −compute which scrolls 1.5×), landing/crash/launch + Base Area2D.
+  34 GdUnit4 tests green. SpawnManager/HostageManager/HUD are stubs until Tasks 14/16/20.
+- GDScript gotcha: `-6 << 8` is a parse error (negative shift operand) — write `-(6 << 8)`
+- Next step: Phase 5 (Task 14: hostage system — the big one), then Task 15 (bullets)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
