@@ -39,21 +39,6 @@
     "flagged": true,
     "reason": "no_candidates"
   },
-  "base_desert": {
-    "name": "base_desert",
-    "flagged": true,
-    "reason": "no_candidates"
-  },
-  "base_jungle": {
-    "name": "base_jungle",
-    "flagged": true,
-    "reason": "no_candidates"
-  },
-  "base_alien": {
-    "name": "base_alien",
-    "flagged": true,
-    "reason": "no_candidates"
-  },
   "fence_tower_desert_0": {
     "name": "fence_tower_desert_0",
     "flagged": true,

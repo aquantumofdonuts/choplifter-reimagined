@@ -1,6 +1,6 @@
 # Choplifter Clone
 
-A modern clone of the classic 1982 Broderbund arcade game *Choplifter*, in which the player pilots a helicopter to rescue hostages from enemy territory.
+A modern clone of the classic 1982 Broderbund arcade game *Choplifter*, in which the player pilots a helicopter to rescue hostages from enemy territory.  Based on the reverse-engineered Apple II source code by Quinn Dunki (Blondihacks) and inspired by the original game design by Dan Gorlin.
 
 ## Overview
 
