@@ -1,6 +1,8 @@
 extends CharacterBody2D
 class_name Chopper
 
+signal chopper_died  # emitted by die() (Task 19); World drives the sortie reset from it
+
 # --- Source-faithful tables (choplifter.s:5262–5267) ---
 # Y: TARGET velocities (units/frame, high-byte). Velocity eases toward these — never added.
 const ACCEL_Y_TABLE: Array[int] = [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 6]
