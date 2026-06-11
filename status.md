@@ -25,7 +25,7 @@
 - **Done (Phase 1):** Tasks 4–7 — all four autoloads registered (GameState w/ source RNG +
   hostage universe, Settings, AudioManager w/ SFX+Music buses, SceneTransition w/ runtime
   content_scale_mode switch). 15 GdUnit4 tests green.
-- Placeholder `src/scenes/Boot.tscn` exists so headless runs stay clean — Task 21 replaces it
+- Placeholder `src/scenes/Boot.tscn` existed so headless runs stayed clean — replaced by the real Boot scene in Task 21
 - **Gotcha found:** GdUnit4 hooks are `before_test`/`after_test`, NOT `before_each`/`after_each`
   (plan's test snippets use the wrong names — fix when transcribing future tasks' tests)
 - **Done (Phase 2):** Tasks 8–10 — Chopper.gd/.tscn with source-faithful CF1 integration
@@ -68,7 +68,16 @@
   from GameState per frame + 3 dimming chopper life icons; PROCESS_MODE_ALWAYS; World.tscn now
   instances HUD.tscn) and PauseMenu (layer 50, Resume/QuitToMenu; World._unhandled_input toggles
   on "pause" action, guarded by GameState.input_locked). 63 GdUnit4 tests green.
-- Next step: Phase 11 (Task 21: menus)
+- **Done (Tasks 21/22, ebeed17 + 3d2d9ba):** Boot (applies native-res menu scale mode via public
+  `SceneTransition.apply_scale_mode_for()`, copies Settings→GameState with enum casts, 1.5 s splash
+  → MainMenu) and MainMenu (Play → RetroTitle in Retro mode else SortieBanner; Quit hidden on web;
+  Settings button disabled until Task 40; mode label). RetroTitle: 4-phase attract
+  (Broderbund/Logo/Mission/Demo cards using extracted mode1 title sprites at exact 4× downscale);
+  input-skip armed only after a no-input frame and gated on `input_locked` (held Play click can't
+  insta-skip); **v0.1 deviation:** DEMO is a static card looping back to BRODERBUND after ~10 s —
+  recorded-input demo (`data/demo_input.tres`) deferred to v1.0, file intentionally not created.
+  64 tests green; Boot→MainMenu and RetroTitle full-cycle headless smoke runs clean.
+- Next step: Task 24 (wire SFX to game events; Task 23's SFX assets were pre-generated in e71e257)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
