@@ -1,0 +1,135 @@
+[gd_scene load_steps=6 format=3 uid="uid://retrotitle00001"]
+
+[ext_resource type="Script" path="res://src/scenes/RetroTitle.gd" id="1_rt"]
+[ext_resource type="Texture2D" uid="uid://cb02epfjbq3ax" path="res://assets/graphics/mode1/title/broderbund.png" id="2_bb"]
+[ext_resource type="Texture2D" uid="uid://c4ht75amwlv7v" path="res://assets/graphics/mode1/title/choplifter_logo.png" id="3_logo"]
+[ext_resource type="Texture2D" uid="uid://dkodtrnc6v74m" path="res://assets/graphics/mode1/title/dan_gorlin.png" id="4_dg"]
+[ext_resource type="Texture2D" uid="uid://bhjd5gdmelr4q" path="res://assets/graphics/mode1/title/rescue_hostages.png" id="5_rh"]
+
+[node name="RetroTitle" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_rt")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="BroderbundCard" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Broderbund" type="TextureRect" parent="BroderbundCard"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -110.0
+offset_top = -6.0
+offset_right = 110.0
+offset_bottom = 5.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bb")
+expand_mode = 1
+
+[node name="LogoCard" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Logo" type="TextureRect" parent="LogoCard"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -92.0
+offset_top = -45.0
+offset_right = 91.0
+offset_bottom = -32.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_logo")
+expand_mode = 1
+
+[node name="DanGorlin" type="TextureRect" parent="LogoCard"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -49.0
+offset_top = 5.0
+offset_right = 49.0
+offset_bottom = 22.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4_dg")
+expand_mode = 1
+
+[node name="MissionCard" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RescueHostages" type="TextureRect" parent="MissionCard"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -53.0
+offset_top = -14.0
+offset_right = 53.0
+offset_bottom = 13.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_rh")
+expand_mode = 1
+
+[node name="DemoCard" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DemoLabel" type="Label" parent="DemoCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "DEMO"
