@@ -1,7 +1,8 @@
 extends CharacterBody2D
 class_name Chopper
 
-signal chopper_died  # emitted by die() (Task 19); World drives the sortie reset from it
+signal chopper_died    # emitted by die() after the death sequence; World drives the sortie reset
+signal chopper_landed  # declared for later tasks (HUD/boarding cues); emitted on the landed transition
 
 # --- Source-faithful tables (choplifter.s:5262–5267) ---
 # Y: TARGET velocities (units/frame, high-byte). Velocity eases toward these — never added.
@@ -17,6 +18,7 @@ const VEL_X_CLAMP_HI: int = 0x15      # high-byte clamp ±21 (source cmp #$15 / 
 const VEL_FRAC: int = 256             # velocity is 8.8 fixed point (low byte = fraction)
 const MAX_BULLETS: int = 5
 const TURN_STATES: int = 11           # -5 to +5
+const DEATH_DURATION: float = 1.5     # Seconds for explosion animation
 
 # --- Bullet gravity table from choplifter.s:7260 (|turn_state| → drop) ---
 const BULLET_GRAVITY_TABLE: Array[int] = [-2, -2, -1, -1, -1, 0]
@@ -246,6 +248,8 @@ func _settle() -> void:
 	pos_y = 0.0
 	vel_y = 0
 	vel_x -= _asr(vel_x, 1)       # ground X decay (source chopperPhysics_Decay: ASR by 1)
+	if not landed:
+		chopper_landed.emit()     # landed transition (airborne/hover → on the ground)
 	landed = true
 	airborne = false
 	landed_at_base = over_base
@@ -256,10 +260,14 @@ func crash() -> void:
 	die()
 
 func die() -> void:
-	# Minimal core; Task 19 adds the explosion/death sequence and sortie accounting on top.
 	if dying:
 		return
 	dying = true
+	death_timer = 0
+	GameState.on_chopper_death(hostages_aboard)
+	AudioManager.play_sfx("explosion")
+	# Play explosion animation, then emit signal
+	await get_tree().create_timer(DEATH_DURATION).timeout
 	chopper_died.emit()
 
 func _check_boarding_nearby_hostages() -> void:

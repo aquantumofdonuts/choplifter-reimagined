@@ -57,9 +57,32 @@ func _update_camera() -> void:
 	terrain.update_scroll(int(target_x))  # parallax mountains track the scroll (Task 12 wiring)
 
 func _on_chopper_died() -> void:
-	# Task 19 implements the sortie reset / loss flow.
-	pass
+	# victory is signalled separately by HostageManager (World.victory_achieved) — not re-checked here
+	if GameState.is_mission_loss():
+		_start_loss("hostages")
+	elif GameState.is_sorties_loss():
+		_start_loss("sorties")
+	else:
+		# R3-C3: survive the scene reload — serialize field hostages into GameState (the source
+		# hostageTable persists in RAM across deaths; scene nodes do not).
+		hostage_manager.serialize_field_hostages()
+		await get_tree().create_timer(1.0).timeout
+		SceneTransition.transition_to("res://src/scenes/SortieBanner.tscn")
 
 func _start_victory() -> void:
-	# Task 19 implements the victory flow.
-	pass
+	GameState.input_locked = true
+	AudioManager.play_sfx("ui_confirm")  # Victory sting placeholder
+	await get_tree().create_timer(3.0).timeout
+	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")
+
+func _start_loss(_reason: String) -> void:
+	GameState.input_locked = true
+	await get_tree().create_timer(2.0).timeout
+	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")
+
+# Not yet called — HUD/later tasks poll this after rescue/kill accounting changes (per plan).
+func _check_end_conditions() -> void:
+	if GameState.is_victory():
+		_start_victory()
+	elif GameState.is_mission_loss():
+		_start_loss("hostages")
