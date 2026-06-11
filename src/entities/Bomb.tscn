@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://bomb0000000001"]
+
+[ext_resource type="Script" path="res://src/entities/Bomb.gd" id="1_bo"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/bullet/jet_bomb.png" id="2_tex"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hb"]
+size = Vector2(4, 5)
+
+[node name="Bomb" type="Area2D"]
+collision_layer = 16
+collision_mask = 2
+script = ExtResource("1_bo")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_hb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_tex")

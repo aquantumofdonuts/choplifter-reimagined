@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://missile0000001"]
+
+[ext_resource type="Script" path="res://src/entities/Missile.gd" id="1_mi"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/bullet/jet_missile.png" id="2_tex"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hb"]
+size = Vector2(6, 3)
+
+[node name="Missile" type="Area2D"]
+collision_layer = 16
+collision_mask = 2
+script = ExtResource("1_mi")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_hb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_tex")

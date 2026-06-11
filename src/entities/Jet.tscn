@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3 uid="uid://jet00000000001"]
+
+[ext_resource type="Script" path="res://src/entities/Jet.gd" id="1_jt"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/jet/level.png" id="2_tex"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hb"]
+size = Vector2(24, 8)
+
+[node name="Jet" type="CharacterBody2D"]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_jt")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("RectangleShape2D_hb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_tex")
