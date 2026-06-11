@@ -16,7 +16,7 @@
 - Soundfont gitignored — restore with `cp /usr/share/sounds/sf2/FluidR3_GM.sf2 assets/audio/soundfonts/chiptune.sf2`
 - Do NOT re-run generation (wastes paid Scenario credits). Integration of assets into scenes is still pending at plan positions.
 
-### Godot project — IN PROGRESS (Phases 0–1 complete)
+### Godot project — IN PROGRESS (Phases 0–2 complete)
 - **Authoritative plan:** `docs/plans/2026-06-07-implementation-plan.md` (round-3 review fixes already merged in, 92c0921; review docs archived under `docs/plans/archive/`)
 - **Plus:** `docs/plans/2026-06-11-meta-game-depth-design.md` (Tasks 37/37b amendments)
 - **Done:** Tasks 1, 2, 3, 3b, 3c, 3d — project bootstrap (Godot 4.6.3, GdUnit4 v6.1.3 verified
@@ -28,7 +28,12 @@
 - Placeholder `src/scenes/Boot.tscn` exists so headless runs stay clean — Task 21 replaces it
 - **Gotcha found:** GdUnit4 hooks are `before_test`/`after_test`, NOT `before_each`/`after_each`
   (plan's test snippets use the wrong names — fix when transcribing future tasks' tests)
-- Next step: Phase 2 (Task 8: chopper physics — source-faithful integration, CF1)
+- **Done (Phase 2):** Tasks 8–10 — Chopper.gd/.tscn with source-faithful CF1 integration
+  (golden traces green), turn state machine, input map (9 actions, keyboard+gamepad; LB/RB =
+  face_left/face_right — plan's double-assignment of LB resolved). 26 GdUnit4 tests green.
+- Hitbox masks are BITMASKS: plan's "layers 3|5|7" = collision_mask 84 (Chopper.tscn)
+- assets/store/ is the maintainer's side-work (store listings) — leave untracked; has .gdignore
+- Next step: Phase 3 (Task 11: World scene + camera scroll; Task 12: parallax mountains)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
