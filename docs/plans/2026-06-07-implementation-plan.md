@@ -9,10 +9,11 @@
 **Tech Stack:** Godot 4.x (GDScript), GDUnit4 (testing), Python 3 (asset tools), ImageMagick + Pillow (sprite post-processing), numpy/scipy/ffmpeg (SFX), midiutil/FluidSynth (music), Scenario MCP (Mode 2 sprite generation).
 
 **Definition of Done:** The plan is "done" when all of the following behavioral criteria pass:
-- All 64 hostages are rescuable in a single play-through (win condition reachable)
+- All 64 hostages are rescuable in a single play-through (win condition reachable). *Caveat (source-faithful, R3-H7): hostages that walk to the base door on foot — chopper-full run-backs — despawn safe but uncredited, exactly as in the original; the validating play-through must avoid triggering them (don't fill the chopper while runners are en route).*
 - All three loss conditions are reachable (sorties exhausted, all hostages killed/rescued)
 - A **production-path integration test** passes: one hostage spawns from a house, runs to a landed chopper, boards (respecting the 16-aboard cap), is delivered to base via the base-runner unload, and increments `GameState.total_rescues` — driven through the real `World` scene graph, not isolated helpers
 - A **physics golden-trace test** passes: a recorded input sequence reproduces an expected per-frame chopper position/velocity trace within tolerance
+- An **input-path landing test** passes: holding the real `descend` action takes an airborne chopper to `landed == true` through `_handle_input()` — no direct state pokes. (R3-H8: the other two gates bypass the input layer and cannot catch a broken control path.)
 - GDUnit4 test suite passes cleanly with zero failures
 - Python pytest suite passes cleanly
 - Game runs at a stable 60fps locked tick rate (no frame-rate-dependent physics drift)
@@ -43,7 +44,16 @@ After all criteria pass, perform a final audit using the "full-review" skill.
 | **v1.0** | Polish | Web export, touch controls, fuel system tuned, full review |
 | **v2.0** | Mode 3 | Hi-Res assets, Godot 4 3D renderer for 2D gameplay |
 
-> **Start with v0.1. Do not begin Mode 2 asset work until v0.1 is playable end-to-end.**
+> **Start with v0.1.** Mode 2 *asset generation* (the Task 23/30 pipeline portions) has already run
+> ahead of this gate with the maintainer's sign-off — see the execution-status note below. The gate
+> now applies to *integrating* Mode 2 assets into the game (Task 29 onward), which still must wait
+> for v0.1 to be playable end-to-end.
+
+> **Execution status (2026-06-11):** Task 3 (Mode 1 sprite extraction, 128 PNGs), Task 23 (SFX
+> pipeline, 20 OGGs), and the Task 30 pipeline scripts/spec are **already complete and committed**
+> (e71e257, a742dce, 690ea2e); Mode 2 sprite generation is **in flight** (117/161 via the Scenario
+> REST API). Executors must treat Tasks 3, 23, and the committed parts of Task 30 as done — do not
+> re-run extraction or generation; doing so wastes paid credits and can clobber in-flight output.
 
 ---
 
@@ -206,6 +216,7 @@ In `Project → Project Settings → Layer Names → 2D Physics`:
 | 5 | `enemy_projectiles` | Shell / Missile / Bomb `Area2D` hitboxes |
 | 6 | `hostages` | Hostage `Area2D` hitbox |
 | 7 | `base` | Base `Area2D` |
+| 8 | `houses` | House `Area2D` hitbox (shoot-to-open — R3 house model) |
 
 **Hit-detection architecture (apply to every entity scene):**
 
@@ -225,10 +236,11 @@ In `Project → Project Settings → Layer Names → 2D Physics`:
 |---|---|---|
 | Chopper | 2 | 3 (enemies), 5 (enemy projectiles), 7 (base) |
 | Tank / Jet / Alien | 3 | 4 (player bullets) |
-| Bullet | 4 | 3 (enemies), 6 (hostages) |
+| Bullet | 4 | 3 (enemies), 6 (hostages), 8 (houses — shoot-to-open) |
 | Shell / Missile / Bomb | 5 | 2 (chopper) |
 | Hostage | 6 | 4 (player bullets) |
 | Base (`Area2D`) | 7 | 2 (chopper) |
+| House | 8 | — (passive; detected by player bullets) |
 
 > Ground interaction (landing, shells hitting dirt) is handled by the movement `CharacterBody2D`
 > against layer 1, not by the hitbox matrix above.
@@ -315,13 +327,23 @@ Create `docs/FIDELITY_LEDGER.md` with this seed table (extend per task):
 |---|---|---|---|
 | Chopper Y integration (ease-to-target) | Exact | choplifter.s:5207–5234 | Task 8 |
 | Chopper X integration (friction + accel table + clamp) | Exact | choplifter.s:5160–5260 | Task 8 |
-| Landing / crash / launch thresholds | Exact | choplifter.s:4792–4804 | Task 13 |
+| Proportional vertical input (ACCELY index 0–15) | Exact (digital on keyboard) | choplifter.s:5630–5658 | Task 10 — keyboard `descend` = full deflection (index 0); analog sticks map proportionally |
+| Landing / crash / launch thresholds (touchdown gated on centered X stick) | Exact | choplifter.s:4792–4804, 5287–5331 | Task 13 |
 | Hostage topology (4 houses / 64 reservoir / 16 active) | Exact | choplifter.s:3742–3815 | Task 14 |
+| House choice (under-chopper preference + random-start ring scan) | Exact | choplifter.s:3756–3795 | Task 14 |
 | 16-aboard cap + "chopper full" run-back | Exact | choplifter.s:3509–3556 | Task 14 |
-| Base-runner unload + `CURR_LEVEL`-on-unload | Exact | choplifter.s:3789–3817 | Task 13/14 |
+| Run-back / door walk-in (no rescue credit) | Approximation (documented) | choplifter.s:3460–3526 | Task 14 — source underflows `BASE_RUNNERS` and leaks `HOSTAGES_ACTIVE`; we keep the no-credit rule, fix the counter leaks |
+| Base-runner unload + `CURR_LEVEL`-on-unload (`CHOP_LOADED` batch) | Exact | choplifter.s:3789–3826 | Task 13/14 — rescues credited at UNLOAD, not at the door |
+| Enemy spawn selection (one per `$2F` tick; RNG gates `$28`/bit 7) | Exact | choplifter.s:4570–4618 | Task 16 |
 | Tank spawn velocity branch + PosV high-byte bug | Exact | choplifter.s:3886–3922 | Task 16 |
-| Source RNG (rol/eor/ror LCG) | Exact | choplifter.s:6072–6083 | Task 4 |
-| 16-house single field | Enhanced (Mode 2+) | — | Reimagined variant only; NOT Mode 1 |
+| Shell launch velocity (always 3) | Exact | choplifter.s:4560–4565 | Task 16 |
+| Jet motion / fire cadence | Approximation (documented) | `$6C00` velocity tables not ported | Task 17 |
+| Alien fire gates (anim frame 0, own Y < `$58`, RNG mask `$48`) | Approximation (screen-row mapping) | choplifter.s:9280–9296 | Task 18 |
+| Bullet speed / hostage `DETECT_RANGE` | Approximation (documented) | — | Tasks 15/14 — tuned values, not source-extracted |
+| House ignition (shoot-to-open; releases occupants; house 3 pre-opened with 8 fielded) | Exact | choplifter.s:8985–8998, 8605–8616, 11341–11360 | Task 14 — polarity is 0=closed/1=open; fire does NOT kill occupants. Source ordnance-vs-house test covers pages 0–2 only (house 3 starts open) |
+| Camera scroll clamps (`$02B0`–`$1208`) | Exact | choplifter.s:4768–4775 | Task 11 |
+| Source RNG (rol/eor/ror through carry, V-flag seed bump) | Exact algorithm; seed/carry init approximated | choplifter.s:6069–6083 | Task 4 — source seed is the uninitialized accumulator; a bit-exact stream is unattainable by design |
+| 16-house single field | Enhanced (Mode 2+) | — | Reimagined variant only; NOT Mode 1 — Task 35b |
 
 **Step: Commit**
 
@@ -373,20 +395,24 @@ func test_source_coordinate_constants():
     assert_float(GameState.src_to_px(280.0)).is_equal_approx(480.0, 0.001)
 
 func test_hostage_universe_initialized():
-    # 4 houses × 16 = 64 reservoir; max 16 active; max 16 aboard
+    # 4 houses × 16 = 64 reservoir; max 16 active; max 16 aboard. Game start (source
+    # spawnInitialHostages): house 3 pre-ignited (open) with 8 hostages already fielded.
     assert_int(GameState.NUM_HOUSES).is_equal(4)
-    assert_array(GameState.hostages_in_houses).is_equal([16, 16, 16, 16])
-    assert_array(GameState.house_states).is_equal([1, 1, 1, 1])
-    assert_int(GameState.hostages_left).is_equal(64)
-    assert_int(GameState.hostages_active).is_equal(0)
+    assert_array(GameState.hostages_in_houses).is_equal([16, 16, 16, 8])
+    assert_array(GameState.house_states).is_equal([0, 0, 0, 1])  # 0 = closed, 1 = ignited/open
+    assert_int(GameState.hostages_left).is_equal(56)
+    assert_int(GameState.hostages_active).is_equal(8)
     assert_int(GameState.base_runners).is_equal(0)
+    assert_int(GameState.field_hostage_records.size()).is_equal(8)
 
 func test_source_rng_is_deterministic():
     GameState._rnd = 0x42
     GameState._rnd_seed = 0x00
+    GameState._rnd_carry = 0
     var first := GameState.random_byte()
     GameState._rnd = 0x42
     GameState._rnd_seed = 0x00
+    GameState._rnd_carry = 0
     var repeat := GameState.random_byte()
     assert_int(first).is_equal(repeat)          # same seed → same sequence
     assert_int(first).is_between(0, 255)
@@ -429,7 +455,8 @@ var gameplay_variant: GameplayVariant = GameplayVariant.STANDARD
 var sortie: int = 0           # 0-based sortie index (0 = first life)
 var lives_remaining: int = 3
 var curr_level: int = 0       # 0-3 in Mode 1; 0-7 in Mode 2/3
-var total_rescues: int = 0    # TOTAL_RESCUES — counted as each base-runner reaches the door
+var total_rescues: int = 0    # TOTAL_RESCUES — credited at UNLOAD as each carried hostage disembarks
+                              # (choplifter.s:3814); door arrival only decrements BASE_RUNNERS (R3-M10)
 var hostages_killed: int = 0  # HOSTAGES_KILLED
 var hostages_loaded: int = 0  # HOSTAGES_LOADED — currently aboard the chopper
 var input_locked: bool = false
@@ -452,6 +479,8 @@ const SRC_BOUNDS_LEFT: int = 0x02D0     # 720  — BOUNDS_LEFT
 const SRC_BOUNDS_RIGHT: int = 0x1300    # 4864 — BOUNDS_RIGHT
 const SRC_BASE_X: int = 0x1274          # 4724 — BASE_X
 const SRC_FARHOUSE_X: int = 0x0380      # 896  — FARHOUSE_X (left-most house anchor)
+const SRC_SCROLL_END_X: int = 0x02B0    # 688  — SCROLL_END: leftmost viewport-left camera clamp (R3-M1)
+const SRC_SCROLL_START_X: int = 0x1208  # 4616 — SCROLL_START: rightmost viewport-left camera clamp
 const SRC_VIEW_WIDTH: int = 280         # source viewport width (units visible across the screen)
 const SRC_TO_PX: float = 480.0 / 280.0  # render scale = Camera2D zoom factor (screen px per src unit)
 
@@ -469,43 +498,81 @@ const HOSTAGES_PER_HOUSE: int = 16       # 4 × 16 = 64 = TOTAL_HOSTAGES
 const MAX_ACTIVE_HOSTAGES: int = 16      # MAX_HOSTAGES hostageTable record count
 const MAX_ABOARD: int = 16               # HOSTAGES_LOADED cmp #$10 cap
 const MAX_SPAWN_BATCH: int = 5           # HOSTAGES_ACTIVE cmp #$05 spawn throttle
-# Source X anchors for the 4 houses: FARHOUSE_X + index*256 (high byte += index)
-const HOUSE_SRC_X: Array[int] = [0x038A, 0x048A, 0x058A, 0x068A]
+# Source X anchors for the 4 houses: FARHOUSE_X + index*256 (high byte += index).
+# These are the house ANCHORS — the +$0A hostage-emerge offset is applied once, at spawn
+# (choplifter.s:3858–3866). Do not bake it in here too (R3-M2).
+const HOUSE_SRC_X: Array[int] = [0x0380, 0x0480, 0x0580, 0x0680]
 
 var hostages_in_houses: Array[int] = []  # hostagesInHouses[4] — remaining inside each house
 var house_states: Array[int] = []        # houseStates[4] — 1 = standing, 0 = on fire
 var hostages_left: int = 0               # HOSTAGES_LEFT — reservoir not yet emerged
 var hostages_active: int = 0             # HOSTAGES_ACTIVE — emerged & in the field
 var base_runners: int = 0                # BASE_RUNNERS — disembarked, walking to the base door
+var chop_loaded: bool = false            # CHOP_LOADED — armed on each boarding, cleared on the first
+                                         # unload of the batch; gates the CURR_LEVEL increment (R3-H4)
 
-# --- Source RNG (HF8) — 8-bit LCG, choplifter.s:6072–6083. Deterministic for Mode 1 / replay ---
+# R3-C3: field-hostage records that must survive World.tscn reloads (the source hostageTable lives
+# in RAM across deaths; scene nodes do not). Serialized by World before a sortie reload,
+# re-instantiated by HostageManager.restore_field_hostages() on the next sortie.
+var field_hostage_records: Array[Dictionary] = []  # [{ "x": float, "state": int, "counted_in_base_runners": bool }]
+
+# --- Source RNG (HF8 / R3-H1) — faithful port of randomNumber (choplifter.s:6069–6083) ---
+# 6502 rol/ror rotate THROUGH the carry flag (9-bit), adc consumes the carry left by ror, and the
+# extra seed bump is gated on the OVERFLOW flag (bvc), not carry. The carry flag is modeled as
+# persistent state. Ledger: Exact algorithm; the source seed ("whatever was in the accumulator
+# when the loader was done") and initial carry are approximated as fixed values — a bit-exact
+# stream vs. real hardware is unattainable by design.
 var _rnd: int = 0x42         # ZP_RND seed (any nonzero start)
 var _rnd_seed: int = 0x00    # randomSeed
+var _rnd_carry: int = 0      # modeled 6502 carry flag
 
 func random_byte() -> int:
-    # Faithful port of randomNumber: rol/eor/ror on _rnd, plus seed mix with overflow carry.
-    var a := _rnd
-    var rotated := ((_rnd << 1) | (_rnd >> 7)) & 0xFF   # rol ZP_RND
-    _rnd = rotated
-    a = a ^ _rnd                                        # eor ZP_RND
-    _rnd = ((_rnd >> 1) | ((_rnd & 1) << 7)) & 0xFF     # ror ZP_RND
-    _rnd_seed = (_rnd_seed + 1) & 0xFF                  # inc randomSeed
-    var sum := a + _rnd_seed
-    if sum > 0xFF:                                      # adc + bvc/inc (carry path)
+    var a := _rnd                                        # lda ZP_RND
+    var c := _rnd_carry
+    var c_out := (_rnd >> 7) & 1                         # rol ZP_RND — 9-bit, through carry
+    _rnd = ((_rnd << 1) | c) & 0xFF
+    c = c_out
+    a = a ^ _rnd                                         # eor ZP_RND
+    c_out = _rnd & 1                                     # ror ZP_RND — 9-bit, through carry
+    _rnd = ((_rnd >> 1) | (c << 7)) & 0xFF
+    c = c_out
+    _rnd_seed = (_rnd_seed + 1) & 0xFF                   # inc randomSeed (does not touch flags)
+    var sum := a + _rnd_seed + c                         # adc randomSeed — consumes ror's carry
+    var result := sum & 0xFF
+    _rnd_carry = 1 if sum > 0xFF else 0
+    # bvc randomNumberAlt — the extra seed bump fires on signed OVERFLOW (V flag), not carry
+    if (~(a ^ _rnd_seed) & (a ^ result)) & 0x80 != 0:
         _rnd_seed = (_rnd_seed + 1) & 0xFF
-    a = sum & 0xFF
-    _rnd = a                                            # sta ZP_RND
-    return a
+    _rnd = result                                        # sta ZP_RND
+    return result
 
 func _init_hostage_universe() -> void:
+    # R3 house-model fix — source polarity ($7311, choplifter.s:5097): 0 = untouched/CLOSED,
+    # 1 = on fire/OPEN. Hostages emerge ONLY from ignited (open) houses; igniting RELEASES the
+    # occupants, it does not kill them (igniteHouse, choplifter.s:8985–8998). The player opens
+    # houses by shooting them (ordnance-vs-house check, choplifter.s:8605–8616).
     hostages_in_houses = []
     house_states = []
     for _i in range(NUM_HOUSES):
         hostages_in_houses.append(HOSTAGES_PER_HOUSE)
-        house_states.append(1)  # standing
+        house_states.append(0)  # closed
     hostages_left = TOTAL_HOSTAGES
     hostages_active = 0
     base_runners = 0
+    # Game-start setup (spawnInitialHostages, choplifter.s:11341–11360): the right-most house
+    # begins IGNITED with 8 of its hostages already in the field beside it. Seed them as field
+    # records; World._ready()'s restore_field_hostages() instantiates them.
+    house_states[3] = 1
+    hostages_in_houses[3] -= 8
+    hostages_left -= 8
+    hostages_active = 8
+    field_hostage_records.clear()
+    for i in range(8):
+        field_hostage_records.append({
+            "x": float(HOUSE_SRC_X[3] + 0x0A + i * 6),
+            "state": 0,  # Hostage.State.WAVING (raw int — avoids a cross-class dependency here)
+            "counted_in_base_runners": false,
+        })
 
 func reset() -> void:
     sortie = 0
@@ -516,6 +583,8 @@ func reset() -> void:
     hostages_loaded = 0
     input_locked = false
     demo_mode = false
+    chop_loaded = false
+    field_hostage_records.clear()
     _init_hostage_universe()
 
 func is_victory() -> bool:
@@ -534,8 +603,9 @@ func level_cap() -> int:
     return MODE1_LEVEL_CAP if visual_mode == VisualMode.RETRO else MODE2_LEVEL_CAP
 
 # Source increments CURR_LEVEL during base unload, gated by cmp #$03 (choplifter.s:3822–3826).
+# Mode 2/3 extend the cap to 7 — use level_cap(), not the hardcoded Mode 1 constant (R3-H5).
 func increment_level_on_unload() -> void:
-    if curr_level < MODE1_LEVEL_CAP:
+    if curr_level < level_cap():
         curr_level += 1
 
 func on_chopper_death(aboard: int) -> void:
@@ -987,8 +1057,10 @@ const ACCEL_Y_TABLE: Array[int] = [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1
 # X: 16-bit signed acceleration magnitudes, indexed by bank amount |turn_state| (0 = head-on).
 const ACCEL_X_TABLE: Array[int] = [0x0000, 0x0060, 0x00B4, 0x0108, 0x015C, 0x01A4]
 
-const GRAVITY_INDEX: int = 8          # ZP_ACCELY default (no thrust)
-const FULL_THRUST_INDEX: int = 15     # ZP_ACCELY max
+const GRAVITY_INDEX: int = 8          # ZP_ACCELY default (no thrust) — target −2
+const FULL_THRUST_INDEX: int = 15     # ZP_ACCELY max — target +6
+const DESCEND_INDEX: int = 0          # ZP_ACCELY min — full stick-down, target −10 (R3-C1: required
+                                      # to reach MIN_VY and land; gravity alone tops out at −2)
 const VEL_X_CLAMP_HI: int = 0x15      # high-byte clamp ±21 (source cmp #$15 / #$EB)
 const VEL_FRAC: int = 256             # velocity is 8.8 fixed point (low byte = fraction)
 const MAX_BULLETS: int = 5
@@ -1050,9 +1122,11 @@ func _integrate_x() -> void:
     var idx := absi(accelx)
     var a := ACCEL_X_TABLE[idx]
     vel_x += signi(accelx) * a
-    # Clamp |high byte| to ±VEL_X_CLAMP_HI.
+    # Clamp the high byte (source cmp #$15 / cmp #$EB, choplifter.s:5240–5258): the positive side
+    # clamps AT +$15 (zeroing the low byte at exactly $15xx); the negative side clamps below −$15
+    # to $EB00. R3-L1.
     var hi := vel_x_hi()
-    if hi > VEL_X_CLAMP_HI:
+    if hi >= VEL_X_CLAMP_HI:
         vel_x = VEL_X_CLAMP_HI << 8
     elif hi < -VEL_X_CLAMP_HI:
         vel_x = -(VEL_X_CLAMP_HI << 8)
@@ -1257,9 +1331,16 @@ In `Project → Project Settings → Input Map`, add:
 | `move_right` | D, Right Arrow; Left Stick Right; D-pad Right |
 | `face_left` | Q; LB/L1 |
 | `face_right` | E; RB/R1 |
-| `face_camera` | S, Down Arrow; Left Stick Down; D-pad Down |
+| `descend` | S, Down Arrow; Left Stick Down; D-pad Down |
+| `face_camera` | X; Right Stick Click / Y (pad) |
 | `fire` | Space; RT/R2; A/Cross |
 | `pause` | Escape, P; Start/Menu |
+
+> **R3-C1 — `descend` is required for the game to be completable.** Touchdown registers only at
+> `vy_hi ≤ −5` (MIN_VY), and gravity alone eases to −2. The source stick is proportional —
+> `joystickYTable` maps deflection to ACCELY index 0–15 (choplifter.s:5630–5658). Keyboard
+> `descend` is digital full-deflection (index 0); analog gamepad sticks SHOULD map the Y axis
+> proportionally across indexes 0–15.
 
 **Step 2: Add input polling to Chopper.gd**
 
@@ -1276,9 +1357,11 @@ func _handle_input() -> void:
     elif Input.is_action_just_pressed("face_camera"):
         face_camera()
 
-    # Thrust
+    # Vertical: thrust up, descend (required to land — see the R3-C1 note above), or gravity.
     if Input.is_action_pressed("thrust_up"):
         accely_index = FULL_THRUST_INDEX
+    elif Input.is_action_pressed("descend"):
+        accely_index = DESCEND_INDEX
     else:
         accely_index = GRAVITY_INDEX
 
@@ -1350,6 +1433,7 @@ signal victory_achieved  # emitted by HostageManager when TOTAL_HOSTAGES are res
 @onready var chopper: Chopper = $Chopper
 @onready var spawn_manager: SpawnManager = $SpawnManager
 @onready var hostage_manager: HostageManager = $HostageManager
+@onready var terrain: Terrain = $Terrain
 @onready var hud: CanvasLayer = $HUD
 
 var _frame_count: int = 0  # global frame counter (replicates FRAME_COUNT)
@@ -1364,12 +1448,16 @@ func _ready() -> void:
     chopper.chopper_died.connect(_on_chopper_died)
     victory_achieved.connect(_start_victory)
     hostage_manager.setup(self, chopper)
+    hostage_manager.restore_field_hostages()  # R3-C3: re-instantiate survivors from the prior sortie
 
 func _physics_process(_delta: float) -> void:
     _frame_count = (_frame_count + 1) & 0xFF  # 8-bit wrap (matches source FRAME_COUNT)
     _update_camera()
     spawn_manager.tick(_frame_count)
     hostage_manager.tick(_frame_count)
+
+const SRC_VIEW_HEIGHT: float = 270.0 / (480.0 / 280.0)  # 157.5 source units visible vertically
+const GROUND_MARGIN_SRC: float = 24.0  # source units of terrain visible BELOW the ground line (tune by eye)
 
 func _update_camera() -> void:
     # Work entirely in source units; the camera zoom handles the render scale.
@@ -1379,11 +1467,17 @@ func _update_camera() -> void:
         target_x = chopper.pos_x - SCROLL_LEAD_RIGHT
     else:
         target_x = chopper.pos_x - (view - SCROLL_LEAD_LEFT)
-    # Clamp so the viewport never scrolls past the world edges.
+    # R3-M1: clamp to the source scroll limits SCROLL_END/SCROLL_START ($02B0–$1208,
+    # choplifter.s:4768–4775) — the viewport may show up to 32 units beyond the world bounds.
     target_x = clampf(target_x,
-        float(GameState.SRC_BOUNDS_LEFT), float(GameState.SRC_BOUNDS_RIGHT) - view)
+        float(GameState.SRC_SCROLL_END_X), float(GameState.SRC_SCROLL_START_X))
     camera.position.x = target_x
-    camera.position.y = 0.0
+    # R3-C2: vertical framing. Gameplay renders at y ≤ 0 (altitude is up-positive, negated once at
+    # render), so the camera's top-left must sit ABOVE the ground line: the visible band is
+    # [-(SRC_VIEW_HEIGHT - GROUND_MARGIN_SRC), +GROUND_MARGIN_SRC] — sky above, a strip of terrain
+    # below. With y = 0 the camera would show only the underground half-plane.
+    camera.position.y = -(SRC_VIEW_HEIGHT - GROUND_MARGIN_SRC)
+    terrain.update_scroll(int(target_x))  # parallax mountains track the scroll (Task 12 wiring)
 ```
 
 **Step 4: Create World.tscn**
@@ -1393,13 +1487,15 @@ In Godot: create scene, root = `Node2D`, attach `World.gd`. Add children:
 - `Chopper.tscn` instance (name: `Chopper`)
 - `Node` → attach `SpawnManager.gd` (name: `SpawnManager`)
 - `Node` → attach `HostageManager.gd` (name: `HostageManager`)
+- `Terrain.tscn` instance (name: `Terrain`) — parallax mountains + ground sprite (Task 12); scroll
+  is driven from `_update_camera()` above
 - `CanvasLayer` → attach `HUD.gd` (name: `HUD`) — stub for now
 - `StaticBody2D` for ground (name: `Ground`), `CollisionShape2D` along the world width at the
   ground baseline (source y = 0)
 - `Base.tscn` instance at `x = SRC_BASE_X` (name: `Base`)
 - **4 × `House.tscn` instances** (Mode 1) at `GameState.HOUSE_SRC_X` (`0x038A, 0x048A, 0x058A,
   0x068A`). Name them `House0`–`House3` and set each `house_index` 0–3. (The 16-house layout is
-  Mode 2+ only — Task 33.)
+  Mode 2+ only — Task 35b.)
 
 Save as `src/world/World.tscn`.
 
@@ -1563,8 +1659,10 @@ func _check_ground() -> void:
     pos_y = max(pos_y, float(-MAX_SINK))
     var vy_h := vel_y_hi()
     if airborne:
-        # Touchdown only registers when descending at least MIN_VY.
-        if vy_h <= MIN_VY_HI:
+        # Touchdown only registers when descending at least MIN_VY *with the X stick centered* —
+        # the source reaches the intersection check only through the ZP_ACCELX == 0 branch
+        # (chopperPhysicsNoAccel, choplifter.s:5287–5292). R3-M3.
+        if accelx == 0 and vy_h <= MIN_VY_HI:
             if absi(vel_x_hi()) >= CRASHSPEED_HI:
                 crash()
                 return
@@ -1647,7 +1745,7 @@ git commit -m "feat: source-faithful landing/crash/launch + Base Area2D detectio
 > table**, and a **16-aboard cap** — no waves. (`spawnHostagesChooseHouse` masks RNG with `#$03` and
 > iterates `cpx #$04`; `MAX_HOSTAGES`=16 is the active-record table size; `HOSTAGES_LEFT` starts at
 > 64. choplifter.s:3742–3815.) The earlier "16 houses × 4" model was fabricated and is **removed from
-> Mode 1**; it is retained only as a Mode 2+ Reimagined enhancement (Task 33).
+> Mode 1**; it is retained only as a Mode 2+ Reimagined enhancement (Task 35b).
 >
 > **The rescue loop must be wired through production (CF4).** A dedicated `HostageManager` node,
 > ticked every physics frame by `World`, runs the source `spawnHostages`/unload cycle. Without it the
@@ -1733,6 +1831,14 @@ func test_field_spawn_draws_from_house_reservoir():
     var mgr := preload("res://src/world/HostageManager.gd").new()
     add_child(mgr)
     mgr.setup(self, _stub_chopper(0.0, false))   # chopper not at base
+    # R3 house model: hostages emerge only from IGNITED houses, and the game-start state has
+    # house 3 open with 8 already-active fielded hostages (which would block the <5 spawn
+    # throttle). Set up a clean single-open-house state for this test.
+    GameState.house_states = [1, 0, 0, 0]        # only house 0 ignited/open
+    GameState.hostages_in_houses = [16, 16, 16, 16]
+    GameState.hostages_left = 64
+    GameState.hostages_active = 0
+    GameState.field_hostage_records.clear()
     var before := GameState.hostages_left
     mgr.tick(0)                                   # frame 0 passes the &3 cadence gate
     assert_int(GameState.hostages_left).is_equal(before - 1)
@@ -1741,6 +1847,7 @@ func test_field_spawn_draws_from_house_reservoir():
 
 func test_unload_at_base_increments_rescues_and_level():
     GameState.hostages_loaded = 2
+    GameState.chop_loaded = true     # armed by boarding (CHOP_LOADED) — gates the level increment
     GameState.curr_level = 0
     var chopper := _stub_chopper(float(GameState.SRC_BASE_X), true)
     chopper.hostages_aboard = 2
@@ -1785,6 +1892,8 @@ const DETECT_RANGE: float = 96.0     # source units within which a landed choppe
 var state: State = State.WAVING
 var house: House = null
 var countdown_timer: float = 0.0     # Tier C: stranded countdown
+var counted_in_base_runners: bool = false  # true only for unloaded runners (those that inc'd
+                                           # BASE_RUNNERS); chopper-full run-backs stay false (R3-H7)
 
 func _ready() -> void:
     add_to_group("hostages")
@@ -1815,7 +1924,15 @@ func _run_toward(target_x: float) -> void:
 func _run_to_base_door() -> void:
     position.x += RUN_STEP            # walk right toward the base door
     if position.x >= float(GameState.SRC_BASE_X):
-        GameState.base_runners = maxi(GameState.base_runners - 1, 0)
+        # R3-H7 (Approximation, documented in the Fidelity Ledger): door arrival despawns the
+        # hostage SAFE but UNCREDITED — faithful to source, which never increments TOTAL_RESCUES
+        # at the door (choplifter.s:3460–3471). Unlike the source we keep the counters clean: the
+        # source dec's BASE_RUNNERS even for chopper-full run-backs that never incremented it
+        # (underflow to $FF) and leaks HOSTAGES_ACTIVE forever.
+        if counted_in_base_runners:
+            GameState.base_runners = maxi(GameState.base_runners - 1, 0)
+        else:
+            GameState.hostages_active = maxi(GameState.hostages_active - 1, 0)
         queue_free()                  # reached the door — safe!
 
 # Called by Chopper._check_boarding_nearby_hostages() each frame while landed.
@@ -1830,12 +1947,15 @@ func check_boarding(chopper: Chopper) -> void:
 
 func _try_board(chopper: Chopper) -> void:
     if GameState.hostages_loaded >= GameState.MAX_ABOARD:
-        # HF5: chopper full — turn back toward the base instead of boarding.
+        # HF5: chopper full — turn back toward the base instead of boarding. The hostage remains
+        # an ACTIVE field hostage (counted_in_base_runners stays false) — source keeps it in
+        # HOSTAGES_ACTIVE (choplifter.s:3521–3526).
         state = State.BASE_RUNNER
         return
     state = State.RESCUED
     chopper.hostages_aboard += 1
     GameState.hostages_loaded += 1
+    GameState.chop_loaded = true      # CHOP_LOADED — re-arms the per-batch CURR_LEVEL gate (R3-H4)
     GameState.hostages_active = maxi(GameState.hostages_active - 1, 0)
     AudioManager.play_sfx("hostage_board")
     queue_free()
@@ -1857,26 +1977,24 @@ func _die() -> void:
 extends Node2D
 class_name House
 
-# Houses do NOT own hostage counts — GameState does (HF2). A house is a view + a fire flag bound to
-# its index in GameState.hostages_in_houses / GameState.house_states.
+# Houses do NOT own hostage counts — GameState does (HF2). A house is a view + an ignition flag
+# bound to its index in GameState.hostages_in_houses / GameState.house_states.
+#
+# R3 house-model fix (the earlier draft had this inverted): source polarity is 0 = untouched/
+# CLOSED, 1 = on fire/OPEN ($7311, choplifter.s:5097). Igniting a house RELEASES its occupants —
+# they emerge over time via the spawn tick — it does NOT kill them (igniteHouse,
+# choplifter.s:8985–8998). The player opens houses by shooting them; house 3 starts open.
 @export var house_index: int = 0
 
 func _ready() -> void:
     position.x = float(GameState.HOUSE_SRC_X[house_index])
 
-func is_eligible() -> bool:
-    return GameState.house_states[house_index] == 1 \
-        and GameState.hostages_in_houses[house_index] > 0
+func is_open() -> bool:
+    return GameState.house_states[house_index] == 1
 
-func set_on_fire() -> void:
-    if GameState.house_states[house_index] == 0:
-        return
-    GameState.house_states[house_index] = 0
-    # Kill everyone still inside; they are removed from the reservoir.
-    var inside := GameState.hostages_in_houses[house_index]
-    GameState.hostages_killed += inside
-    GameState.hostages_left = maxi(GameState.hostages_left - inside, 0)
-    GameState.hostages_in_houses[house_index] = 0
+func ignite() -> void:
+    # Idempotent — the source returns early if the house is already burning.
+    GameState.house_states[house_index] = 1
 ```
 
 **Step 5: Implement HostageManager.gd (CF4 — the rescue-loop wiring)**
@@ -1889,7 +2007,6 @@ class_name HostageManager
 var _world: Node = null
 var _chopper: Chopper = null
 var _hostage_scene: PackedScene = preload("res://src/entities/Hostage.tscn")
-var _batch_counted: bool = false     # mirrors CHOP_LOADED gating for CURR_LEVEL
 
 func setup(world: Node, chopper: Chopper) -> void:
     _world = world
@@ -1914,18 +2031,18 @@ func tick(frame_count: int) -> void:
 func _unload_one() -> void:
     # HF6: disembark one carried hostage per cycle into a base-runner walking to the door.
     if GameState.hostages_loaded <= 0:
-        _batch_counted = false
         return
     GameState.total_rescues += 1
     GameState.hostages_loaded -= 1
     GameState.base_runners += 1
     _chopper.hostages_aboard = maxi(_chopper.hostages_aboard - 1, 0)
     AudioManager.play_sfx("hostage_rescued")
-    if not _batch_counted:
-        _batch_counted = true
-        GameState.increment_level_on_unload()   # CURR_LEVEL +1 per batch, gated cmp #$03
-    if GameState.hostages_loaded == 0:
-        _batch_counted = false
+    # R3-H4: CURR_LEVEL increments once per batch, where a "batch" is delimited by BOARDING —
+    # CHOP_LOADED is armed on each boarding and cleared on the FIRST unload after it
+    # (choplifter.s:3552–3557, 3819–3826). Partial-unload → re-board → re-unload increments again.
+    if GameState.chop_loaded:
+        GameState.chop_loaded = false
+        GameState.increment_level_on_unload()
     _spawn_base_runner()
     if GameState.is_victory():
         _world.emit_signal("victory_achieved")
@@ -1933,6 +2050,7 @@ func _unload_one() -> void:
 func _spawn_base_runner() -> void:
     var h: Hostage = _hostage_scene.instantiate()
     h.state = Hostage.State.BASE_RUNNER
+    h.counted_in_base_runners = true      # this runner DID increment BASE_RUNNERS (R3-H7)
     h.position.x = _chopper.pos_x + 4.0   # disembark just right of the chopper, walk to door
     _world.add_child(h)
 
@@ -1945,23 +2063,61 @@ func _spawn_field_hostage() -> void:
     GameState.hostages_active += 1
     var h: Hostage = _hostage_scene.instantiate()
     h.state = Hostage.State.WAVING
-    h.position.x = float(GameState.HOUSE_SRC_X[idx]) + 10.0   # FARHOUSE + small offset
+    h.position.x = float(GameState.HOUSE_SRC_X[idx] + 0x0A)   # anchor + $0A emerge offset — applied
+                                                              # ONCE, here only (R3-M2)
     _world.add_child(h)
 
 func _choose_house() -> int:
-    # Source: prefer the house under the chopper, else random eligible (RNG and #$03, iterate cpx #4).
-    for _attempt in range(GameState.NUM_HOUSES):
-        var idx := GameState.random_byte() & 0x03
-        if GameState.house_states[idx] == 1 and GameState.hostages_in_houses[idx] > 0:
+    # R3-H3, source-exact (choplifter.s:3756–3795): prefer the house UNDER the chopper
+    # (CHOP_POS_X_H − FARHOUSE_X_H in 0..3), else a random-start RING SCAN over all four houses —
+    # exactly ONE RNG call, guaranteed to find any eligible house.
+    var strip := (int(_chopper.pos_x) >> 8) - (GameState.SRC_FARHOUSE_X >> 8)
+    if strip >= 0 and strip < GameState.NUM_HOUSES and _house_eligible(strip):
+        return strip
+    var start := GameState.random_byte() & 0x03
+    var idx := start
+    while true:
+        if _house_eligible(idx):
             return idx
+        idx = (idx + 1) % GameState.NUM_HOUSES
+        if idx == start:
+            break
     return -1
+
+func _house_eligible(idx: int) -> bool:
+    return GameState.house_states[idx] == 1 and GameState.hostages_in_houses[idx] > 0
+
+# --- R3-C3: field hostages must survive World.tscn reloads (the source hostageTable persists in
+# RAM across deaths; scene nodes do not). World calls serialize before the sortie transition and
+# restore from _ready() on the next sortie. RUNNING demotes to WAVING — the chopper respawns at
+# the base, so the run trigger re-evaluates naturally next time it lands nearby.
+func serialize_field_hostages() -> void:
+    GameState.field_hostage_records.clear()
+    for h in get_tree().get_nodes_in_group("hostages"):
+        if h.state in [Hostage.State.WAVING, Hostage.State.RUNNING, Hostage.State.BASE_RUNNER]:
+            GameState.field_hostage_records.append({
+                "x": h.position.x,
+                "state": Hostage.State.WAVING if h.state == Hostage.State.RUNNING else h.state,
+                "counted_in_base_runners": h.counted_in_base_runners,
+            })
+
+func restore_field_hostages() -> void:
+    for rec in GameState.field_hostage_records:
+        var h: Hostage = _hostage_scene.instantiate()
+        h.state = rec["state"]
+        h.counted_in_base_runners = rec["counted_in_base_runners"]
+        _world.add_child(h)
+        h.position.x = rec["x"]
+    GameState.field_hostage_records.clear()
 ```
 
 **Step 6: Create scenes & wire into World**
 
 - `Hostage.tscn`: `CharacterBody2D` root (movement; layer 0 / mask 1) + child `Area2D` `Hitbox`
   (`collision_layer = 6`, `collision_mask = 4`) so player bullets can kill it. Attach `Hostage.gd`.
-- `House.tscn`: `Node2D` + sprite. Attach `House.gd`.
+- `House.tscn`: `Node2D` + sprite (closed and burning frames keyed off `is_open()`) + child `Area2D`
+  `Hitbox` (`collision_layer = 8` `houses`, `collision_mask = 0`) sized to the house body, so player
+  bullets can ignite it (the bullet's mask detects layer 8 and calls `ignite()`). Attach `House.gd`.
 - In `World` (Task 11): add a `HostageManager` node, call `hostage_manager.setup(self, chopper)` in
   `_ready()`, and `hostage_manager.tick(_frame_count)` in `_physics_process()`. Instantiate **4**
   `House.tscn` nodes with `house_index` 0–3.
@@ -1970,8 +2126,9 @@ func _choose_house() -> int:
 
 **Step 8: Update the Fidelity Ledger**
 
-Mark "Hostage topology", "16-aboard cap + run-back", and "Base-runner unload + CURR_LEVEL-on-unload"
-`Exact`.
+Mark "Hostage topology", "House choice", "House ignition", "16-aboard cap + run-back", and
+"Base-runner unload + `CURR_LEVEL`-on-unload (`CHOP_LOADED` batch)" `Exact`; mark "Run-back / door
+walk-in (no rescue credit)" `Approximation (documented)`.
 
 **Step 9: Commit**
 
@@ -2044,6 +2201,7 @@ func init(abs_turn_state: int, face: int = 1) -> void:
     dir = face
 
 func _ready() -> void:
+    add_to_group("projectiles")   # sortie-reset cleanup frees this group (Task 33) — R3-M7
     # Hitbox lives on this Area2D root (layer 4 = player_bullets, mask 3|6 = enemies|hostages).
     area_entered.connect(_on_area_entered)
 
@@ -2064,6 +2222,11 @@ func _on_area_entered(area: Area2D) -> void:
         _despawn()
     elif entity is Hostage:
         entity._die()
+        _despawn()
+    elif entity is House:
+        # R3 house model: shooting a closed house ignites it, RELEASING its occupants
+        # (ordnance-vs-house check + igniteHouse, choplifter.s:8605–8616, 8985–8998).
+        entity.ignite()
         _despawn()
 
 func _despawn() -> void:
@@ -2217,17 +2380,19 @@ var vel_x: float = 0.0
 var vel_y: int = 0           # source convention: +up; gravity decrements each frame
 
 func _ready() -> void:
+    add_to_group("projectiles")   # sortie-reset cleanup (Task 33) — R3-M7
     # Hitbox on this Area2D root (layer 5 = enemy_projectiles, mask 2 = chopper).
     area_entered.connect(_on_area_entered)
 
 func launch_at(target_world_pos: Vector2) -> void:
     var dx := target_world_pos.x - position.x
     vel_x = signf(dx) * SPEED
-    vel_y = 6                # initial upward component (ballistic arc)
+    vel_y = 3                # initial upward V — source shellLaunchVTable is always 3
+                             # (choplifter.s:4560–4565)
 
 func launch_downward() -> void:
     vel_x = 0.0
-    vel_y = -6               # fires straight down
+    vel_y = -3               # straight down (the alien shot reuses the tank-shell entity type)
 
 func _physics_process(_delta: float) -> void:
     vel_y -= 1               # gravity
@@ -2278,14 +2443,20 @@ func can_spawn_alien() -> bool:
     return GameState.curr_level >= 2 and active_aliens.size() < _max_aliens()
 
 func _try_spawn_enemy() -> void:
-    # MF3: independent per-type cap checks so jets/aliens are never starved by an
-    # elif-chain that always prefers tanks. Each type spawns at most one per tick.
+    # R3-H2, source-exact (spawnEnemyVehicles, choplifter.s:4582–4618): ONE spawn attempt per $2F
+    # tick. A single RNG byte gates the pick — alien needs (rnd & $28) == 0 (level 2+), jet needs
+    # bit 7 clear (level 1+), otherwise tank. A failed gate or full cap falls through to the next
+    # type. (Round-2 MF3 replaced this with parallel per-type spawns; that over-corrected — it
+    # fixed elif starvation but spawned up to 3 enemies per tick, which the source never does.)
+    var r := GameState.random_byte()
+    if GameState.curr_level >= 2 and (r & 0x28) == 0 and active_aliens.size() < _max_aliens():
+        _spawn_alien()
+        return
+    if GameState.curr_level >= 1 and (r & 0x80) == 0 and active_jets.size() < _max_jets():
+        _spawn_jet()
+        return
     if active_tanks.size() < _max_tanks():
         _spawn_tank()
-    if can_spawn_jet():
-        _spawn_jet()
-    if can_spawn_alien():
-        _spawn_alien()
 
 # --- Source-faithful tank X selection (choplifter.s spawnTank{Pos,Neg,Med}V) ---
 # Branch on the chopper X-velocity high byte:
@@ -2405,6 +2576,7 @@ const BOMB_PROXIMITY: float = 150.0  # source units
 var facing: int = 1  # 1 = right, -1 = left
 var fire_timer: int = 0
 var bank_frame: int = 0  # animation frame for barrel-roll
+var _bomb_dropped: bool = false  # one bomb per proximity pass, not one per frame (R3-H6a)
 
 func _ready() -> void:
     add_to_group("enemies")
@@ -2435,11 +2607,14 @@ func _check_bomb_drop() -> void:
     if not chopper:
         return
     if absf(position.x - chopper.pos_x) < BOMB_PROXIMITY:
-        if not bomb_scene:
-            return
+        if _bomb_dropped or not bomb_scene:
+            return                   # R3-H6a: latch — one bomb per pass
+        _bomb_dropped = true
         var b: Bomb = bomb_scene.instantiate()
         b.position = position
         get_parent().add_child(b)
+    else:
+        _bomb_dropped = false        # re-arm once outside the proximity window
 
 func take_hit() -> void:
     AudioManager.play_sfx("explosion")
@@ -2461,6 +2636,7 @@ const SPEED: float = 3.0   # source units/frame
 var dir: int = 1
 
 func _ready() -> void:
+    add_to_group("projectiles")   # sortie-reset cleanup (Task 33) — R3-M7
     # layer 5 = enemy_projectiles, mask 2 = chopper
     area_entered.connect(_on_area_entered)
 
@@ -2487,6 +2663,7 @@ class_name Bomb
 var vel_y: int = 0   # source units/frame, accumulates downward each frame
 
 func _ready() -> void:
+    add_to_group("projectiles")   # sortie-reset cleanup (Task 33) — R3-M7
     area_entered.connect(_on_area_entered)
 
 func _physics_process(_delta: float) -> void:
@@ -2584,7 +2761,10 @@ class_name Alien
 const MAX_VX: float = 5.0
 const MAX_VY: float = 1.0
 const DESPAWN_DIST_X: float = 560.0  # ~2 view widths (2 × 280 source units)
-const FIRE_ALTITUDE_THRESHOLD: float = 150.0  # Only fire when chopper is below this Y
+const FIRE_MIN_ALTITUDE: float = 72.0  # R3-H6b: source gates on the ALIEN'S OWN screen Y < $58
+                                       # (choplifter.s:9289–9291) — i.e. the alien must be high
+                                       # enough. ≈ altitude > 72 source units with the ground at
+                                       # screen row ~160. Ledgered Approximation (screen-row map).
 
 var vel_x: float = 0.0
 var vel_y: float = 0.0
@@ -2592,6 +2772,9 @@ var mid_section_frame: int = 0  # Reuses ENTITY_DIR field — 0,1,2 cycle
 var _physics_frame: int = 0
 
 @export var shell_scene: PackedScene
+
+func _ready() -> void:
+    add_to_group("enemies")    # R3-M7 — bullet hits and sortie-reset cleanup resolve via this group
 
 func chase(chopper_pos: Vector2) -> void:
     # Accelerate toward chopper
@@ -2631,12 +2814,16 @@ func _update_mid_section_animation() -> void:
     if _physics_frame % 3 == 0:
         mid_section_frame = (mid_section_frame + 1) % 3
 
-func _try_fire(chopper_pos: Vector2) -> void:
-    if not can_fire():
+func _try_fire(_chopper_pos: Vector2) -> void:
+    # R3-H6b — source gate order (choplifter.s:9280–9296):
+    if not can_fire():                       # CURR_LEVEL check (Mode 1: == 3)
         return
-    if chopper_pos.y < FIRE_ALTITUDE_THRESHOLD:
-        return  # Only fire at low altitude
-    if (GameState.random_byte() & 0x3F) == 0:  # source-RNG spread, small chance/frame
+    if mid_section_frame != 0:               # only on mid-section animation frame 0 (ENTITY_DIR)
+        return
+    # (source also requires alienStillAnimating; our mid-section animates continuously)
+    if -position.y < FIRE_MIN_ALTITUDE:      # only when the ALIEN itself is high enough (Y < $58)
+        return
+    if (GameState.random_byte() & 0x48) == 0:  # and #$48 — fires on ~1/4 of eligible frames
         _fire_shell()
 
 func _fire_shell() -> void:
@@ -2735,6 +2922,9 @@ func _on_chopper_died() -> void:
     elif GameState.is_sorties_loss():
         _start_loss("sorties")
     else:
+        # R3-C3: survive the scene reload — serialize field hostages into GameState (the source
+        # hostageTable persists in RAM across deaths; scene nodes do not).
+        hostage_manager.serialize_field_hostages()
         await get_tree().create_timer(1.0).timeout
         SceneTransition.transition_to("res://src/scenes/SortieBanner.tscn")
 
@@ -2789,12 +2979,12 @@ git commit -m "feat: chopper death, sortie reset, win/loss transitions"
 
 ### Task 19b: Production-path integration & physics golden-trace tests (MF1)
 
-These are the two **Definition of Done** gates that exercise the real wiring rather than isolated
+These are the three **Definition of Done** gates that exercise the real wiring rather than isolated
 helpers. They must run headless under the GDUnit4 runner.
 
 **Files:**
 - Test: `tests/integration/test_rescue_loop.gd`
-- Test: `tests/integration/test_physics_golden_trace.gd`
+- Test: `tests/integration/test_physics_golden_trace.gd` (also hosts the input-path landing gate)
 
 **Step 1: Production-path rescue-loop integration test**
 
@@ -2815,16 +3005,21 @@ func test_full_rescue_increments_total_rescues() -> void:
     var gs := GameState
     var start_rescues := gs.total_rescues
 
+    # R3 house model: open only house 0 and drop the game-start house-3 squad so every spawn
+    # lands within the chopper's detect range — keeps the test deterministic instead of relying
+    # on the RNG to pick house 0 before the active cap fills. (1 = ignited/open, 0 = closed.)
+    gs.house_states = [1, 0, 0, 0]
+    gs.hostages_in_houses = [16, 16, 16, 16]
+    gs.hostages_left = 64
+    gs.hostages_active = 0
+    gs.field_hostage_records.clear()
+
     # 1) Land the chopper at a field house so a hostage spawns and runs to it.
     world.chopper.pos_x = float(gs.HOUSE_SRC_X[0])
     world.chopper.pos_y = 0.0
     world.chopper.vel_x = 0
     world.chopper.vel_y = 0
     world.chopper.over_base = false   # field landing, not the base
-    # Only house 0 standing so every field hostage spawns within the chopper's detect range
-    # (the other houses are 256+ source units away, beyond DETECT_RANGE) — keeps the test
-    # deterministic instead of relying on the RNG to pick house 0 before the active cap fills.
-    gs.house_states = [1, 0, 0, 0]
 
     # Pump frames until a hostage spawns from the house, runs over, and boards.
     var boarded := false
@@ -2894,6 +3089,26 @@ func test_gravity_trace_through_physics_process() -> void:
         chopper._physics_process(1.0 / 60.0)
         trace.append(chopper.vel_y_hi())
     assert_array(trace).is_equal([-1, -2, -2])
+    chopper.queue_free()
+
+func test_descend_and_land_via_input_path() -> void:
+    # Third DoD gate (R3-C1 / R3-H8): the chopper must be able to LAND using only real input
+    # actions — the other two gates bypass the input layer and stay green even when no control
+    # path can reach MIN_VY. Descend (index 0, target −10) passes vy_hi ≤ −5 within 2 frames.
+    var chopper := preload("res://src/entities/Chopper.tscn").instantiate()
+    add_child(chopper)
+    chopper.pos_y = 40.0
+    chopper.airborne = true
+    chopper.vel_x = 0
+    chopper.vel_y = 0
+
+    Input.action_press("descend")
+    for _i in range(120):
+        chopper._physics_process(1.0 / 60.0)
+        if chopper.landed:
+            break
+    Input.action_release("descend")
+    assert_bool(chopper.landed).is_true()
     chopper.queue_free()
 ```
 
@@ -3162,8 +3377,10 @@ const PHASE_DURATIONS: Dictionary = {
 # A recorded-input playback system will be designed and added in v1.0 polish.
 
 func _process(delta: float) -> void:
-    # Any real input → go to first sortie
-    if not GameState.demo_mode and Input.is_anything_pressed():
+    # Any real input → go to first sortie. This must keep working DURING the demo phase (R3-M6) —
+    # the v0.1 demo is a live uncontrolled game, so there is no synthetic input to collide with.
+    # When recorded-input replay lands (v1.0), replayed actions must bypass this check.
+    if Input.is_anything_pressed():
         _go_to_sortie()
         return
     phase_timer += delta
@@ -3685,11 +3902,14 @@ Open Godot → `F5` (Run Project).
 - [ ] Play → Retro → Title sequence plays; any key advances to Sortie Banner
 - [ ] Sortie Banner shows, auto-advances to World
 - [ ] Chopper spawns at base, floats with gravity, thrust works
+- [ ] Descend (S/Down) accelerates downward; touchdown registers only while the X input is centered
 - [ ] Chopper rotates through 11 turn frames; logical_face flips instantly
-- [ ] Camera scrolls with asymmetric lead (further ahead when flying right)
+- [ ] Camera scrolls with asymmetric lead (further ahead when flying right); sky and ground line are framed correctly (playfield on screen)
 - [ ] Mountains parallax at ~50% speed
 - [ ] Chopper lands on base; landing resets vertical velocity
+- [ ] House 3 starts open with 8 hostages outside; shooting a closed house ignites it and hostages stream out
 - [ ] Hostages wave, run, board when chopper lands nearby
+- [ ] Field hostages survive a chopper death (still present after the sortie reload)
 - [ ] Delivering hostages to base increments Rescued counter
 - [ ] Firing bullets: max 5 on screen; gravity varies with turn state
 - [ ] Tanks spawn, patrol, aim cannon, fire shells
@@ -4022,8 +4242,17 @@ git commit -m "feat: variant picker UI — three-card selector for Standard/Dire
 
 `ASSET_PIPELINE.md §2.3` and `§3.6`: Train a custom Scenario LoRA style model, then generate sprites per group.
 
-> **This is a human-in-the-loop workflow. It requires a Scenario Pro account and
-> the Scenario MCP server connected to VS Code.**
+> **Status (2026-06-11): mostly complete — do not re-run.** The pipeline scripts and spec are
+> committed (`postprocess_sprites.py`, `sprites_mode2.json` — **161** sprite specs, commit a742dce)
+> and generation is **in flight**: 117/161 sprites generated (commit 690ea2e), remainder running
+> now. Generation uses the **Scenario REST API** via `src/tools/generate_mode2_sprites.py` (key in
+> git-ignored `src/tools/.env`) — not the MCP server originally described here; the MCP route
+> remains an optional interactive alternative. Re-running completed generation wastes paid credits
+> and can clobber in-flight output. Remaining work in this task: finish the last sprites, then the
+> consistency pass.
+
+> **This is a human-in-the-loop workflow. It requires a Scenario Pro account** (REST API key, or
+> the Scenario MCP server for the interactive alternative).
 
 > **Fallback path:** If the Scenario service is unavailable, rate-limited, or produces
 > inconsistent output, Mode 2 sprites can be hand-authored using Aseprite (pixel art) at the
@@ -4039,7 +4268,7 @@ In VS Code command palette: `Copilot: Add MCP Server` → `https://mcp.scenario.
 
 **Step 2: Create sprite spec JSON**
 
-Create `src/tools/config/sprites_mode2.json` with all ~165 sprite entries (see `ASSET_PIPELINE.md §3.3` for full table). Start with the chopper group:
+Create `src/tools/config/sprites_mode2.json` with all 161 sprite entries (see `ASSET_PIPELINE.md §3.3` for the full table; ✅ already committed in a742dce). Start with the chopper group:
 
 ```json
 [
@@ -4196,7 +4425,8 @@ if __name__ == "__main__":
 pip install Pillow --break-system-packages
 sudo apt install imagemagick
 python3 -c "from PIL import Image; print('Pillow OK')"
-convert --version | head -1
+# ImageMagick 7 renames convert -> magick; prefer magick, fall back to convert (IM6)
+magick --version 2>/dev/null | head -1 || convert --version | head -1
 ```
 
 **Step 5: Train Scenario style model (human step)**
@@ -4227,35 +4457,40 @@ git commit -m "feat: Mode 2 sprite post-processing pipeline and sprite spec JSON
 **Smoother Y-acceleration curve** — replace index 15 entry from +6 to +5:
 
 ```gdscript
-# In Chopper.gd, when gameplay_variant >= DIRECTORS_CUT:
-func get_y_acceleration() -> int:
-    var table := ACCEL_Y_TABLE.duplicate()
-    if GameState.gameplay_variant >= GameState.GameplayVariant.DIRECTORS_CUT:
-        table[15] = 5  # Smoother top-end thrust
-    return table[accely_index]
+# In Chopper.gd — REPLACE the body of get_y_target() from Task 8. _integrate_y() already calls
+# get_y_target(), so the variant override is live without further wiring (R3-M4).
+func get_y_target() -> int:
+    var v := ACCEL_Y_TABLE[accely_index]
+    if v == 6 and GameState.gameplay_variant >= GameState.GameplayVariant.DIRECTORS_CUT:
+        v = 5  # Smoother top-end thrust
+    return v
 ```
 
 **Three-zone landing system** — `DESIGN.md §4.1`:
 
 ```gdscript
-const CRASH_VY_MULTIPLIER: float = 2.0
+const CRASH_VY_MULTIPLIER: int = 2
 const MAX_CONSECUTIVE_BOUNCES: int = 3
 var consecutive_bounces: int = 0
-var vy_peak_since_bounce: float = 0.0
+var vy_peak_since_bounce: int = 0
 
-func _handle_landing_mode2(impact_vy: float, min_vy: float) -> void:
-    var crash_vy := min_vy * CRASH_VY_MULTIPLIER
-    if abs(impact_vy) <= min_vy:
+# Wired from _check_ground()'s touchdown branch when visual_mode >= MODERN and
+# gameplay_variant >= DIRECTORS_CUT (Mode 1 keeps the source thresholds untouched — R3-M4).
+# All velocities are HIGH-BYTE source units (ints); vel_y is 8.8 fixed point, so shift the
+# bounce-back up by 8 when writing it.
+func _handle_landing_mode2(impact_vy_hi: int, min_vy_hi: int) -> void:
+    var crash_vy_hi := min_vy_hi * CRASH_VY_MULTIPLIER
+    if absi(impact_vy_hi) <= absi(min_vy_hi):
         consecutive_bounces = 0
-        _on_landed(landed_at_base)
-    elif abs(impact_vy) <= crash_vy:
+        _settle()
+    elif absi(impact_vy_hi) <= absi(crash_vy_hi):
         if consecutive_bounces >= MAX_CONSECUTIVE_BOUNCES \
-           and vy_peak_since_bounce < min_vy * 0.5:
+           and vy_peak_since_bounce < absi(min_vy_hi) >> 1:
             die()
         else:
             consecutive_bounces += 1
-            vy_peak_since_bounce = 0.0
-            vel_y = abs(impact_vy) * 0.4
+            vy_peak_since_bounce = 0
+            vel_y = (absi(impact_vy_hi) * 2 / 5) << 8  # 0.4× bounce-back, integer 8.8 fixed point
             AudioManager.play_sfx("bounce")
     else:
         die()
@@ -4280,27 +4515,26 @@ git commit -am "feat(tier-b): momentum bleed through turns — 3-frame decel red
 Add 24-frame charge timer before firing. During charge, play telegraph animation + SFX:
 
 ```gdscript
-# In Tank.gd._physics_process():
+# In Tank.gd — frame-based like the rest of Mode 1 physics: fire_cooldown is an int counted in
+# 60Hz physics frames; do NOT mix in float deltas (R3-M4). Called from _physics_process().
 const TELEGRAPH_FRAMES: int = 24  # 0.4s at 60fps
 
 var _charge_frames: int = 0
 
-func _update_fire(delta: float) -> void:
-    fire_cooldown -= delta
-    if fire_cooldown <= 0.0:
+func _update_fire(chopper: Chopper) -> void:
+    fire_cooldown -= 1
+    if fire_cooldown <= 0:
         if GameState.gameplay_variant >= GameState.GameplayVariant.DIRECTORS_CUT:
             _charge_frames = TELEGRAPH_FRAMES
+            AudioManager.play_sfx("fire_telegraph")   # the tell starts when the charge starts
         else:
-            _fire_shell()
-            fire_cooldown = fire_interval
+            _fire_shell(chopper)
+        fire_cooldown = FIRE_INTERVAL
 
     if _charge_frames > 0:
         _charge_frames -= 1
-        if _charge_frames == TELEGRAPH_FRAMES:  # First frame
-            AudioManager.play_sfx("fire_telegraph")
         if _charge_frames == 0:
-            _fire_shell()
-            fire_cooldown = fire_interval
+            _fire_shell(chopper)
 ```
 
 Aliens are exempt from the telegraph — their unpredictability is intentional.
@@ -4329,9 +4563,11 @@ func _reset_for_new_sortie() -> void:
         if hostage.state in [Hostage.State.RUNNING, Hostage.State.LOADING]:
             GameState.hostages_killed += 1
             hostage.queue_free()
-    # Chopper respawns at base
-    chopper.position = base.position
-    chopper.vel_x = 0.0; chopper.vel_y = 0.0
+    # Chopper respawns at base — set the SOURCE-unit state, not the node position: the render
+    # pass overwrites `position` from pos_x/pos_y every frame (R3-M5).
+    chopper.pos_x = float(GameState.SRC_BASE_X)
+    chopper.pos_y = 0.0
+    chopper.vel_x = 0; chopper.vel_y = 0
     chopper.dying = false; chopper.hostages_aboard = 0
     # GameState: lives/rescues/kills/level preserved (Tier B+)
     GameState.hostages_loaded = 0
@@ -4409,6 +4645,30 @@ git commit -am "feat: music crossfade — 1s tween between calm/tension/action l
 
 ```bash
 git commit -am "feat(tier-c): scatter on death — STRANDED state, 30s countdown, directional HUD arrow"
+```
+
+> Note: `STRANDED` is NOT yet in the `Hostage.State` enum from Task 14 — add it here (the earlier
+> "already in Hostage.gd above" claim was stale).
+
+---
+
+### Task 35b: Reimagined 16-house field (Tier C)
+
+`ENHANCED_GAMEPLAY.md §5`: the Reimagined variant replaces the 4-house Mode 1 field with a
+**16-house single field** (4 hostages each; same 64 total). Mode 1 topology is untouched. This is
+the `Enhanced (Mode 2+)` Fidelity Ledger row — Tasks 11/14 forward-reference it here (it was
+previously mis-referenced as "Task 33", which is world-continuity-on-death).
+
+**Files:** `src/world/World.gd` / `World.tscn`, `src/world/HostageManager.gd`, `src/autoload/GameState.gd`
+
+1. Behind `gameplay_variant == REIMAGINED`: build 16 house anchors procedurally across the field;
+   size `hostages_in_houses` / `house_states` from a `num_houses()` helper instead of the
+   `NUM_HOUSES` constant (4 hostages per house in this variant).
+2. `_choose_house` masks the RNG with `& 0x0F` in this variant; the ring scan is unchanged.
+3. Tests: 16 houses exist only in Reimagined; Mode 1 still spawns exactly 4; totals still sum to 64.
+
+```bash
+git commit -am "feat(tier-c): Reimagined 16-house field — Mode 1 topology untouched"
 ```
 
 ---
@@ -4551,6 +4811,8 @@ git commit --allow-empty -m "milestone: v2.0 kickoff — Mode 3 Hi-Res"
 | `SRC_VIEW_WIDTH` | 280 source units | Visible width; `Camera2D.zoom = 480/280` scales to screen px |
 | `WORLD_BOUNDS_LEFT` | 720 source units (`$02D0`) | Alias of `SRC_BOUNDS_LEFT` |
 | `WORLD_BOUNDS_RIGHT` | 4864 source units (`$1300`) | Alias of `SRC_BOUNDS_RIGHT` |
+| `SRC_SCROLL_END_X` | 688 source units (`$02B0`) | Leftmost viewport-left camera clamp |
+| `SRC_SCROLL_START_X` | 4616 source units (`$1208`) | Rightmost viewport-left camera clamp |
 | `SRC_BASE_X` | 4724 source units (`$1274`) | Base/door X |
 | `MAX_BULLETS` | 5 | Player shots simultaneous |
 | `MAX_HOSTAGES` | 64 | Mode 1: 4 houses × 16 hostages, present in the single scrolling field (no waves). The 16-house layout is Mode 2+ only |
