@@ -238,7 +238,8 @@ For Mode 1, extracted sprites are rendered **white on black** in Godot using a `
 ### 6.3 Mode 2 — Modern Pixel Art
 
 **Target resolution:** 480×270 (exactly ¼ of 1080p → crisp integer scaling on any display)  
-**Godot settings:** `Stretch/Mode = canvas_items`, `Textures/Default/Filter = Nearest`
+**Godot settings:** `Stretch/Mode = viewport`, `Stretch/Scale Mode = integer`, `Textures/Default/Filter = Nearest`  
+**Renderer:** Compatibility (required for Android + Web export; no visual loss for 2D)
 
 **Sprite sizes at 480×270:**
 
@@ -368,7 +369,7 @@ These values must be extracted from `choplifter.s` and replicated exactly — th
 - **World width:** One continuous map per sortie. The original has **hard X bounds** (`BOUNDS_LEFT = $02D0`, `BOUNDS_RIGHT = $1300`) — the chopper's X velocity is zeroed and position is clamped at the edges. The world does **not** loop. The port should implement the same bounds rather than a wrap.
 - **Parallax:** Mode 1: one mountain layer at ~50% (`renderMountains` computes `SCROLLPOS − (SCROLLPOS >> 1)` with `and #$FE` odd-pixel alignment mask). Mode 2/3: two layers at 30% and 50% plus a biome background layer.
 - **Depth layers:** 8 distinct ground planes (z 1–8). Tanks occupy separate planes so they appear at different visual depths simultaneously.
-- **Renderer:** Godot's built-in 2D renderer. `Stretch/Mode = canvas_items`, `Textures/Filter = Nearest` (pixel art).
+- **Renderer:** Godot's built-in 2D renderer, **Compatibility** rendering backend (required for Android + Web; no visual loss for 2D). `Stretch/Mode = viewport`, `Stretch/Scale Mode = integer`, `Textures/Filter = Nearest` (pixel art).
 - **Ground collision:** Flat ground at a fixed Y. Chopper lands when `position.y >= ground_y − chopper_height`. No terrain height variation (faithful to original).
 
 ---
@@ -718,3 +719,5 @@ All previously open questions are now settled:
 | Save system | Settings persist; game progress does not (faithful to original) |
 | Meta-menu architecture | Permanent hi-res Main Menu hub; all exits return here. Apple II title sequence is Retro-mode-only. Menu uses native resolution Control nodes; game world runs in SubViewport |
 | Title sequence ownership | Retro mode only (`RetroTitle.tscn`). Modern and Hi-Res modes launch directly to `SortieBanner.tscn` |
+| Godot rendering backend | **Compatibility** — required for Android + Web export; no visual loss for a 2D game |
+| Stretch mode | `viewport` + `integer` scale — pixel-perfect on high-DPI mobile screens; `canvas_items` would blur sub-pixel edges |
