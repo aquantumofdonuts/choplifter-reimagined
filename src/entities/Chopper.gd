@@ -171,9 +171,20 @@ func _handle_input() -> void:
 	if Input.is_action_just_pressed("fire") and can_fire():
 		_fire_bullet()
 
+@export var bullet_scene: PackedScene = preload("res://src/entities/Bullet.tscn")
+
 func _fire_bullet() -> void:
-	# Stub here; Task 15 implements bullet spawning with the source velocity table.
-	pass
+	if not can_fire():
+		return
+	active_bullets += 1
+	var b: Bullet = bullet_scene.instantiate()
+	# Signed turn_state and stick_x (accelx = ZP_STICKX), plus whole-unit chopper VX
+	# (16-bit velocity high byte), per initBulletPhysics (choplifter.s:7194–7259)
+	b.init(turn_state, accelx, vel_x_hi())
+	b.owner_chopper = self
+	b.position = Vector2(pos_x + float(logical_face) * 24.0, -pos_y)
+	get_parent().add_child(b)
+	AudioManager.play_sfx("bullet_fire")
 
 # --- Turn state machine (Task 9, DESIGN.md §7) ---
 # 11 states (-5…+5); 2 steps/frame while distance ≥ 2, 1 step at distance 1 —

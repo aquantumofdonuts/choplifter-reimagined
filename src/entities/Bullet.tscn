@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://bullet00000001"]
+
+[ext_resource type="Script" path="res://src/entities/Bullet.gd" id="1_bu"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/bullet/chopper_bullet.png" id="2_tex"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hb"]
+size = Vector2(4, 3)
+
+[node name="Bullet" type="Area2D"]
+collision_layer = 8
+collision_mask = 164
+script = ExtResource("1_bu")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_hb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_tex")
