@@ -136,7 +136,7 @@ The source has a single `MIN_VY` threshold — land above it and you die. Mode 2
 | Bounce | `MIN_VY < vy <= CRASH_VY` | Chopper bounces up with ~40% of impact velocity; plays a thud sound |
 | Crash | `vy > CRASH_VY` | Death (same as original) |
 
-`CRASH_VY` = `MIN_VY × 2.0` (exact multiplier tuned during playtesting).
+`CRASH_VY` = `MIN_VY × 2.0`. The 2.0 multiplier is the **set default**, not a placeholder — revisit during playtesting only if the bounce zone proves too forgiving (landings that should clearly crash get bounced) or too harsh (barely-hot landings still die).
 
 **Bounce limit:** After 3 consecutive bounces without gaining meaningful altitude (defined as `vy_peak < MIN_VY × 0.5` between bounces), the next landing always crashes. Prevents infinite bouncing.
 
@@ -166,7 +166,7 @@ The tell is purely cosmetic — it does not reduce fire frequency or damage. It 
 
 **Hostage capacity display**
 
-HUD counter for "on board" changes from a plain number to a `current/max` fraction (e.g. `3/5`). The denominator is the chopper's maximum hostage capacity (extracted from source or set as a tunable constant in `GameState.gd`).
+HUD counter for "on board" changes from a plain number to a `current/max` fraction (e.g. `3/16`). The denominator is the chopper's maximum hostage capacity — **16, source-exact** (`HOSTAGES_LOADED` is gated by `cmp #$10` in `updateHostages`, choplifter.s:3414).
 
 Gives players the information to decide whether to make another pass or return to base.
 
@@ -233,7 +233,7 @@ After each sortie completion (win or loss) and after each wave delivery (end-of-
 | Sorties used | Medium | Fewer deaths = higher grade |
 | Time (seconds) | Low | Faster = higher grade within same kill/sortie bracket |
 
-**Grade thresholds** (TBD — set during playtesting, after establishing baseline completion times):
+**Grade thresholds.** The casualty/sortie conditions below are **final**. The only playtest-calibrated value is the S target time: provisional default **12:00** (`S_TARGET_TIME = 720.0` seconds), recalibrated once Tier C is feature-complete using this recipe: *S target = 110% of the best known 0-casualty single-sortie completion time*. The same constant gates the grade-ceiling indicator's "S still in reach" line, so it must live in one place.
 
 | Grade | Condition |
 |---|---|
@@ -301,7 +301,7 @@ When the chopper dies with hostages aboard, instead of immediately counting them
 
 **Implementation notes:**
 - `fuel: float` on `Chopper.gd`, range 0.0–1.0. Decremented each physics frame during flight.
-- `THRUST_FUEL_RATE` and `HOVER_FUEL_RATE` constants (tuned during playtesting).
+- `THRUST_FUEL_RATE` and `HOVER_FUEL_RATE` constants. **Provisional defaults:** a full tank lasts **120 seconds of hover** (`HOVER_FUEL_RATE = 1.0/120.0` per second) and **60 seconds of full thrust** (`THRUST_FUEL_RATE = 1.0/60.0`), preserving the specified 2× ratio. Sizing rationale: a worst-case sortie (base → far house → base, ≈ 4,100 source units each way) costs well under half a tank at full thrust, so fuel pressures route planning without ever making a single rescue trip impossible. Validate during the v1.0 fuel tuning pass.
 - Fuel state checked in `Chopper.gd._physics_process()` before applying acceleration.
 - HUD fuel gauge: horizontal bar in HUD, hidden when `fuel_enabled == false`.
 - Emergency refill on landing: set `fuel = 0.25` in the landing handler when `fuel <= 0`.
@@ -431,4 +431,4 @@ var scatter_on_death: bool = true    # Always true in Reimagined; not a toggle
 - **Tiers are supersets.** No feature in Tier B contradicts or disables a Tier A feature. No feature in Tier C contradicts or disables Tier B. This invariant must be maintained during implementation.
 - **Fuel is optional within Reimagined.** It's the only Tier C feature that is user-toggleable. Everything else in Reimagined is always active when that tier is selected.
 - **No multiplayer, no online features.** All records are local. No network calls anywhere in this system.
-- **Playtesting is required** before finalizing: acceleration table index 15 value, `CRASH_VY` multiplier, fuel depletion rates, mission rating thresholds, stranded hostage countdown duration. All are marked TBD in this document and must be set empirically.
+- **All tunables now have set defaults; playtesting validates rather than defines them.** Implementation proceeds with: acceleration table index 15 = **+5** (§4.1), `CRASH_VY` = **MIN_VY × 2.0** (§4.1), fuel = **120 s hover / 60 s thrust per tank** (§5.3), stranded countdown = **30 s** (§5.2), Tier B level 4–7 multipliers per the §4.3 table, grade casualty/sortie conditions **final** per §5.1. The single value with a post-implementation calibration step is `S_TARGET_TIME` (provisional 12:00; recipe in §5.1). Change any default only in response to an observed playtest problem, and record the change here.

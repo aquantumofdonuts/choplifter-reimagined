@@ -339,8 +339,9 @@ Create `docs/FIDELITY_LEDGER.md` with this seed table (extend per task):
 | Shell launch velocity (always 3) | Exact | choplifter.s:4560–4565 | Task 16 |
 | Jet motion / fire cadence | Approximation (documented) | `$6C00` velocity tables not ported | Task 17 |
 | Alien fire gates (anim frame 0, own Y < `$58`, RNG mask `$48`) | Approximation (screen-row mapping) | choplifter.s:9280–9296 | Task 18 |
-| Bullet speed / hostage `DETECT_RANGE` | Approximation (documented) | — | Tasks 15/14 — tuned values, not source-extracted |
-| House ignition (shoot-to-open; releases occupants; house 3 pre-opened with 8 fielded) | Exact | choplifter.s:8985–8998, 8605–8616, 11341–11360 | Task 14 — polarity is 0=closed/1=open; fire does NOT kill occupants. Source ordnance-vs-house test covers pages 0–2 only (house 3 starts open) |
+| Bullet velocity (table + chopper-VX inheritance) | Exact | choplifter.s:7194–7259 (`initBulletPhysics`), 4743 (`bulletVelocityTable` $6f8d, 72 bytes), 7260 (`bulletGravityTable` $7fbc) | Task 15 — index = 12×\|turn_state\| + 2×\|stick_x\|; (vx, vy) byte pairs; vx += \|chopper VX high byte\|; vy sign from turn⊕stick |
+| Hostage run trigger (no detect radius) | Exact | choplifter.s:3407–3423 (`updateHostagesPlayerAloft`) | Task 14 — source has NO range check: every field hostage runs toward a landed chopper at any distance, gated only by airborne / landed-at-base / `HOSTAGES_LOADED == 16` |
+| House ignition (shoot-to-open; releases occupants; house 3 pre-opened with 8 fielded) | Exact | choplifter.s:8985–8998, 8605–8616, 11341–11360 | Task 14 — polarity is 0=closed/1=open; fire does NOT kill occupants. Source ordnance-vs-house test covers pages 0–2 only (house 3 starts open). **R3 open question CLOSED by static verification:** `spawnInitialHostages` ($9ea9) sets `houseStates+3 = $01` at game start, so the `cmp #$03` exclusion is correct by construction; `igniteHouse` is also idempotent ($8b4b guards on `houseStates,x`). No emulator check needed |
 | Camera scroll clamps (`$02B0`–`$1208`) | Exact | choplifter.s:4768–4775 | Task 11 |
 | Source RNG (rol/eor/ror through carry, V-flag seed bump) | Exact algorithm; seed/carry init approximated | choplifter.s:6069–6083 | Task 4 — source seed is the uninitialized accumulator; a bit-exact stream is unattainable by design |
 | 16-house single field | Enhanced (Mode 2+) | — | Reimagined variant only; NOT Mode 1 — Task 35b |
@@ -1887,7 +1888,9 @@ enum State { WAVING, RUNNING, LOADING, RESCUED, DEAD, BASE_RUNNER }
 const BOARD_MIN: int = 8
 const BOARD_MAX: int = 10
 const RUN_STEP: float = 2.0          # source moves a hostage 2 units/frame
-const DETECT_RANGE: float = 96.0     # source units within which a landed chopper triggers a run
+# NOTE: there is NO detect radius in the source (choplifter.s:3407–3423). Every field hostage
+# runs toward a landed chopper at ANY distance; the only gates are airborne, landed-at-base,
+# and a full cabin (HOSTAGES_LOADED == 16). An earlier draft used DETECT_RANGE = 96.0 — removed.
 
 var state: State = State.WAVING
 var house: House = null
@@ -1904,8 +1907,9 @@ func on_chopper_landed(chopper: Chopper) -> void:
         return
     if not chopper.landed or chopper.landed_at_base:
         return
-    if absf(position.x - chopper.pos_x) <= DETECT_RANGE:
-        state = State.RUNNING
+    if GameState.hostages_loaded >= 16:   # full cabin: source gate at choplifter.s:3414 (cmp #$10)
+        return
+    state = State.RUNNING                 # any distance — source has no detect radius
 
 func _physics_process(_delta: float) -> void:
     match state:
@@ -2159,15 +2163,28 @@ extends GdUnitTestSuite
 func test_bullet_gravity_at_turn_state_0():
     # Head-on facing: gravity = -2 (steepest drop)
     var b := preload("res://src/entities/Bullet.tscn").instantiate()
-    b.init(0)  # turn_state = 0
+    b.init(0, 0, 0)  # turn_state = 0, stick centered, chopper stationary
     assert_int(b.gravity).is_equal(-2)
     b.queue_free()
 
 func test_bullet_gravity_at_turn_state_5():
     # Full side: gravity = 0 (flies straight)
     var b := preload("res://src/entities/Bullet.tscn").instantiate()
-    b.init(5)
+    b.init(5, 0, 0)
     assert_int(b.gravity).is_equal(0)
+    b.queue_free()
+
+func test_bullet_velocity_full_side_inherits_chopper_speed():
+    # bulletVelocityTable row 5, stick 0 = (26, 0); chopper vx 4 → bullet vx 30
+    var b := preload("res://src/entities/Bullet.tscn").instantiate()
+    b.init(5, 0, 4)
+    assert_int(b.vel_x).is_equal(30)
+    b.queue_free()
+
+func test_bullet_velocity_facing_left_negates_table_vx():
+    var b := preload("res://src/entities/Bullet.tscn").instantiate()
+    b.init(-5, 0, -4)  # full side left, flying left
+    assert_int(b.vel_x).is_equal(-30)
     b.queue_free()
 
 func test_5_bullet_cap():
@@ -2187,18 +2204,36 @@ func test_5_bullet_cap():
 extends Area2D
 class_name Bullet
 
+# Source-exact ballistics (initBulletPhysics, choplifter.s:7194–7259).
+# bulletVelocityTable ($6f8d, 72 bytes): rows by |turn_state| 0–5, columns by |stick_x| 0–5,
+# (vx, vy) pairs in source units/frame; source index = 12·|turn| + 2·|stick|.
+const VELOCITY_TABLE: Array = [
+    [[0, 0],  [0, 0],  [1, 0],  [2, 0],  [2, 0],  [2, 0]],   # |turn| 0 (facing camera)
+    [[3, 0],  [3, 0],  [3, 0],  [3, 0],  [3, 1],  [4, 2]],   # |turn| 1
+    [[8, 0],  [8, 0],  [8, 0],  [8, 1],  [8, 2],  [8, 2]],   # |turn| 2
+    [[12, 0], [12, 0], [12, 1], [12, 2], [11, 2], [10, 2]],  # |turn| 3
+    [[16, 0], [16, 1], [16, 1], [16, 1], [15, 2], [14, 2]],  # |turn| 4
+    [[26, 0], [26, 2], [26, 4], [26, 6], [25, 8], [25, 10]], # |turn| 5 (full side)
+]
 # From choplifter.s:7260 — |turn_state| → bullet drop (Euler accumulation, per source).
 const GRAVITY_TABLE: Array[int] = [-2, -2, -1, -1, -1, 0]
-const SPEED: float = 3.0     # source units/frame (60Hz locked tick)
 
 var gravity: int = 0
+var vel_x: int = 0           # signed units/frame; table vx signed by facing + chopper VX inherited
 var vel_y: int = 0           # integer units/frame; accumulates gravity each frame
-var dir: int = 1            # +1 right, -1 left (logical_face at spawn)
 var owner_chopper: Chopper = null
 
-func init(abs_turn_state: int, face: int = 1) -> void:
-    gravity = GRAVITY_TABLE[clampi(abs_turn_state, 0, 5)]
-    dir = face
+func init(turn_state: int, stick_x: int, chop_vx: int) -> void:
+    # turn_state and stick_x are signed as in the source; chop_vx is the chopper's
+    # 16-bit X velocity high byte (whole units/frame) — bullets inherit chopper speed.
+    var t := clampi(absi(turn_state), 0, 5)
+    var s := clampi(absi(stick_x), 0, 5)
+    var face := -1 if turn_state < 0 else 1
+    vel_x = face * VELOCITY_TABLE[t][s][0] + chop_vx
+    # vy sign flips when turn and stick disagree (tilt direction, choplifter.s:7243–7250)
+    var tilt_flip := (turn_state < 0) != (stick_x < 0)
+    vel_y = -VELOCITY_TABLE[t][s][1] if tilt_flip else VELOCITY_TABLE[t][s][1]
+    gravity = GRAVITY_TABLE[t]
 
 func _ready() -> void:
     add_to_group("projectiles")   # sortie-reset cleanup frees this group (Task 33) — R3-M7
@@ -2208,7 +2243,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
     # Frame-based integer arithmetic (requires the 60Hz locked tick). Positions are source units.
     vel_y += gravity
-    position.x += float(dir) * SPEED
+    position.x += float(vel_x)
     position.y -= float(vel_y)    # vel_y negative → moves down (Godot Y down-positive)
     if position.x < GameState.SRC_BOUNDS_LEFT - 32 \
        or position.x > GameState.SRC_BOUNDS_RIGHT + 32 \
@@ -2245,7 +2280,9 @@ func _fire_bullet() -> void:
         return
     active_bullets += 1
     var b: Bullet = bullet_scene.instantiate()
-    b.init(absi(turn_state), logical_face)
+    # Signed turn_state and stick_x, plus whole-unit chopper VX (16-bit velocity high byte),
+    # per initBulletPhysics (choplifter.s:7194–7259)
+    b.init(turn_state, stick_x, int(vel_x) >> 8)
     b.owner_chopper = self
     b.position = Vector2(pos_x + float(logical_face) * 24.0, -pos_y)
     get_parent().add_child(b)
