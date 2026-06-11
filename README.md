@@ -44,6 +44,14 @@ _To be documented_
 
 This is a personal/learning project. PRs and issues welcome.
 
+## Credits & Acknowledgements
+
+- **Original game:** *Choplifter* (1982) was created by **Dan Gorlin** and published by **Broderbund**.
+- **Reverse-engineered source:** The clean-room decompiled Apple II source code by **Quinn Dunki (Blondihacks)** is available at [github.com/blondie7575/ChoplifterReverse](https://github.com/blondie7575/ChoplifterReverse). It is referenced as a guide for understanding the original game's behavior and is not redistributed in this repository.
+  - Full writeup: [Reversing Choplifter](https://blondihacks.com/reversing-choplifter)
+
+All rights to the original *Choplifter* remain with their respective owners. The reverse-engineered source is the work of Quinn Dunki and is credited accordingly.
+
 ## License
 
 [MIT](LICENSE)
