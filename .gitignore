@@ -156,3 +156,6 @@ release/
 .env
 .env.local
 secrets.*
+
+# GdUnit4 test reports
+reports/
