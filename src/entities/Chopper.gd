@@ -58,6 +58,11 @@ var fuel: float = 1.0          # Tier C only; ignored in Mode 1
 
 func _ready() -> void:
 	add_to_group("chopper")    # entities/managers resolve the player via this group
+	# Engine loop lifecycle (Task 24): started here on spawn; stopped in die() before the
+	# death-sequence await, in PauseMenu.show_pause() (AudioManager is PROCESS_MODE_ALWAYS,
+	# so a paused tree would not silence it), and in World._start_victory/_start_loss
+	# (those transitions leave the chopper alive while swapping to MainMenu).
+	AudioManager.start_loop("engine_loop")
 
 # Arithmetic shift right (sign-preserving) — matches source arithmeticShiftRight16.
 func _asr(v: int, n: int) -> int:
@@ -249,6 +254,7 @@ func _settle() -> void:
 	vel_x -= _asr(vel_x, 1)       # ground X decay (source chopperPhysics_Decay: ASR by 1)
 	if not landed:
 		chopper_landed.emit()     # landed transition (airborne/hover → on the ground)
+		AudioManager.play_sfx("landing")  # Task 24 — v0.1 checklist requires an audible touchdown
 	landed = true
 	airborne = false
 	landed_at_base = over_base
@@ -264,6 +270,7 @@ func die() -> void:
 	dying = true
 	GameState.on_chopper_death(hostages_aboard)
 	hostages_aboard = 0  # GameState zeroed its loaded count; keep the chopper's copy in sync (HUD reads it)
+	AudioManager.stop_loop("engine_loop")  # silence the engine the instant the chopper dies
 	AudioManager.play_sfx("explosion")
 	# Hold for DEATH_DURATION so the explosion SFX plays out before the sortie transition.
 	await get_tree().create_timer(DEATH_DURATION).timeout

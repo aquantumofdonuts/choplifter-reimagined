@@ -18,6 +18,21 @@ var _physics_frame: int = 0
 
 func _ready() -> void:
 	add_to_group("enemies")    # R3-M7 — bullet hits and sortie-reset cleanup resolve via this group
+	# Sustained crackle loop (Task 24). The plan names "alien_crackle_0", which doesn't exist —
+	# the generated files are alien_crackle_lo/mid/hi; mid is the sustained voice (the lo/hi
+	# variants are for the visual mid-section frames, future polish). All aliens share ONE loop
+	# voice per name in AudioManager (an autoload that outlives this scene), so the loop stops
+	# when the LAST alien leaves the tree for ANY reason — kill, despawn, or scene teardown.
+	AudioManager.start_loop("alien_crackle_mid")
+	tree_exiting.connect(_stop_crackle_if_last)
+
+func _stop_crackle_if_last() -> void:
+	# Shared-voice rule: another living alien keeps the loop. Runs from tree_exiting, so this
+	# alien has not yet left the group — count the others.
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Alien and e != self:
+			return
+	AudioManager.stop_loop("alien_crackle_mid")
 
 func chase(chopper_pos: Vector2) -> void:
 	# Accelerate toward chopper
@@ -37,7 +52,7 @@ func can_fire() -> bool:
 
 func check_despawn(chopper_pos: Vector2) -> void:
 	if abs(position.x - chopper_pos.x) > DESPAWN_DIST_X:
-		queue_free()
+		queue_free()   # crackle stop handled by the tree_exiting hook
 
 func _physics_process(_delta: float) -> void:
 	_physics_frame += 1
@@ -79,4 +94,4 @@ func _fire_shell() -> void:
 
 func take_hit() -> void:
 	AudioManager.play_sfx("explosion")
-	queue_free()
+	queue_free()   # crackle stop handled by the tree_exiting hook

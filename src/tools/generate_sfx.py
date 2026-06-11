@@ -3,12 +3,13 @@
 Choplifter Clone SFX synthesizer.
 
 Reads parameter specs from src/tools/config/sfx_spec.py and synthesizes
-all 20 sound effects as OGG Vorbis files in assets/audio/sfx/.
+all sound effects as OGG Vorbis files in assets/audio/sfx/.
 
 Usage:
     python3 src/tools/generate_sfx.py                    # all SFX
     python3 src/tools/generate_sfx.py --sfx explosion    # single SFX
     python3 src/tools/generate_sfx.py --sfx explosion --preview  # WAV preview
+    python3 src/tools/generate_sfx.py --sfx explosion --out-dir /tmp/x  # custom dir (tests)
 
 Requires: numpy, scipy, ffmpeg (system binary)
 """
@@ -28,8 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config.sfx_spec import SFX_SPECS, SAMPLE_RATE as SR  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-OUT_DIR      = PROJECT_ROOT / "assets" / "audio" / "sfx"
-PREVIEW_DIR  = OUT_DIR / "_preview"
+OUT_DIR      = PROJECT_ROOT / "assets" / "audio" / "sfx"   # default; override via --out-dir
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -241,14 +241,24 @@ def main() -> None:
     parser.add_argument(
         "--sfx",
         metavar="NAME",
-        help="Generate a single SFX by name (omit to generate all 20)",
+        help="Generate a single SFX by name (omit to generate all)",
     )
     parser.add_argument(
         "--preview",
         action="store_true",
-        help="Write WAV to assets/audio/sfx/_preview/ instead of converting to OGG",
+        help="Write WAV to <out-dir>/_preview/ instead of converting to OGG",
+    )
+    parser.add_argument(
+        "--out-dir",
+        metavar="DIR",
+        default=None,
+        help="Output directory (default: assets/audio/sfx/). Used by the pytest "
+             "suite to write into a temp dir without touching committed assets.",
     )
     args = parser.parse_args()
+
+    out_dir     = Path(args.out_dir) if args.out_dir else OUT_DIR
+    preview_dir = out_dir / "_preview"
 
     if args.sfx:
         if args.sfx not in SFX_SPECS:
@@ -260,9 +270,9 @@ def main() -> None:
     else:
         targets = SFX_SPECS
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     if args.preview:
-        PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        preview_dir.mkdir(parents=True, exist_ok=True)
 
     ok = errors = 0
     for name, spec in targets.items():
@@ -271,14 +281,14 @@ def main() -> None:
             dur_s   = len(samples) / SR
 
             if args.preview:
-                out = PREVIEW_DIR / f"{name}.wav"
+                out = preview_dir / f"{name}.wav"
                 write_wav(samples, out)
                 print(f"  PREVIEW  {name:<28s}  {dur_s:.3f}s  →  {out.name}")
             else:
                 with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
                     tmp_path = Path(tmp.name)
                 write_wav(samples, tmp_path)
-                out = OUT_DIR / f"{name}.ogg"
+                out = out_dir / f"{name}.ogg"
                 wav_to_ogg(tmp_path, out)
                 tmp_path.unlink(missing_ok=True)
                 kb = out.stat().st_size / 1024
@@ -292,7 +302,9 @@ def main() -> None:
 
     print(f"\nDone. {ok} OK, {errors} errors.")
     if not args.preview and ok:
-        print(f"Output: {OUT_DIR.resolve()}")
+        print(f"Output: {out_dir.resolve()}")
+    if errors:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -122,6 +122,21 @@ SFX_SPECS: dict[str, dict] = {
         "envelope": {"attack": 0.004, "decay": 0.0, "sustain": 1.0, "release": 0.025},
     },
 
+    # Rescue delivery (unload at base) — brighter, longer 4-note rising arpeggio,
+    # distinct from hostage_board's C5-E5-G5 triad and ui_confirm's C5-G5 pair.
+    "hostage_rescued": {
+        "waveform":  "square",
+        "duration":  0.34,
+        "amplitude": 0.58,
+        "notes": [
+            {"freq":  659.25, "start": 0.00, "duration": 0.06},   # E5
+            {"freq":  783.99, "start": 0.07, "duration": 0.06},   # G5
+            {"freq": 1046.50, "start": 0.14, "duration": 0.06},   # C6
+            {"freq": 1318.51, "start": 0.21, "duration": 0.11},   # E6 — held top note
+        ],
+        "envelope": {"attack": 0.004, "decay": 0.0, "sustain": 1.0, "release": 0.03},
+    },
+
     "hostage_death": {
         "waveform":  "sine",
         "duration":  0.34,

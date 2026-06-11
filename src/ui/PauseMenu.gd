@@ -23,11 +23,20 @@ func _unhandled_input(event: InputEvent) -> void:
 func show_pause() -> void:
 	visible = true
 	get_tree().paused = true
+	# AudioManager is PROCESS_MODE_ALWAYS, so pausing the tree alone would leave the
+	# engine loop droning over the pause menu — stop it explicitly (Task 24).
+	AudioManager.stop_loop("engine_loop")
 	resume_button.grab_focus()
 
 func hide_pause() -> void:
 	visible = false
 	get_tree().paused = false
+	# Restart the engine only if a living (not mid-death) chopper exists. Quit-to-menu
+	# also routes through hide_pause(); _on_quit_to_menu_pressed re-stops the loop after
+	# this so no engine voice leaks onto MainMenu.
+	var chopper := get_tree().get_first_node_in_group("chopper") as Chopper
+	if chopper and not chopper.dying:
+		AudioManager.start_loop("engine_loop")
 
 func _on_resume_pressed() -> void:
 	hide_pause()
@@ -36,5 +45,8 @@ func _on_quit_to_menu_pressed() -> void:
 	if GameState.input_locked:
 		return
 	hide_pause()
+	# hide_pause() just restarted the engine loop (the chopper is alive while quitting);
+	# kill it again so nothing is left playing on MainMenu (Task 24).
+	AudioManager.stop_loop("engine_loop")
 	GameState.input_locked = false
 	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")

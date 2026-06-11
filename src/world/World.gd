@@ -95,6 +95,10 @@ func _start_victory() -> void:
 		return
 	_ending = true
 	GameState.input_locked = true
+	# The chopper stays alive through this transition to MainMenu, so its die()-side
+	# stop never runs — silence the engine here (Task 24). Death path is covered by
+	# Chopper.die(); pause path by PauseMenu.show_pause().
+	AudioManager.stop_loop("engine_loop")
 	AudioManager.play_sfx("ui_confirm")  # Victory sting placeholder
 	await get_tree().create_timer(3.0).timeout
 	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")
@@ -104,6 +108,7 @@ func _start_loss(_reason: String) -> void:
 		return
 	_ending = true
 	GameState.input_locked = true
+	AudioManager.stop_loop("engine_loop")  # chopper stays alive on loss too — see _start_victory
 	await get_tree().create_timer(2.0).timeout
 	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")
 
