@@ -48,7 +48,13 @@
   *placement* is a documented approximation (plan only specifies gates/cadence).
 - `hostage_rescued` SFX referenced by HostageManager has no .ogg (warns harmlessly) — map to an
   existing sound or synthesize in Task 24
-- Next step: Phase 10 (Task 19: death/sortie/win-loss; Task 19b: integration + golden-trace gates)
+- **Done (Phase 10, Task 19):** death/sortie/win-loss — Chopper.die() full sequence (GameState
+  accounting + explosion SFX + 1.5s before `chopper_died`; `chopper_landed` emitted on _settle
+  transition), World end-condition routing (loss → MainMenu; survivable death → serialize field
+  hostages → SortieBanner → World reload), SortieBanner scene (2s auto-advance), MainMenu.tscn
+  is a PLACEHOLDER until Task 21. `_check_end_conditions()` exists but is unwired until HUD
+  tasks (per plan). 58 GdUnit4 tests green.
+- Next step: Task 19b (integration + golden-trace gates), then Phase 11 (Task 20: HUD; Task 21: menus)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
