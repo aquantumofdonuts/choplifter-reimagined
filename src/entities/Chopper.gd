@@ -252,8 +252,10 @@ func _settle() -> void:
 	pos_y = 0.0
 	vel_y = 0
 	vel_x -= _asr(vel_x, 1)       # ground X decay (source chopperPhysics_Decay: ASR by 1)
-	if not landed:
-		chopper_landed.emit()     # landed transition (airborne/hover → on the ground)
+	if not landed and airborne:
+		# Landed TRANSITION only (airborne → ground). The spawn frame also reaches _settle()
+		# (grounded, not yet landed) but with airborne == false — no touchdown sound there.
+		chopper_landed.emit()
 		AudioManager.play_sfx("landing")  # Task 24 — v0.1 checklist requires an audible touchdown
 	landed = true
 	airborne = false
