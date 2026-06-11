@@ -32,6 +32,7 @@ var pos_y: float = 0.0   # source altitude, UP-POSITIVE (0 = ground); Godot Y ne
 
 # --- State ---
 var accely_index: int = GRAVITY_INDEX
+var target_turn_state: int = 0 # turn_state animates toward this (Task 9)
 var accelx: int = 0            # ZP_STICKX: joystick-X input, -5…+5; |accelx| indexes ACCEL_X_TABLE
 var turn_state: int = 0        # -5 (left side) … 0 (head-on) … +5 (right side); rotor facing
 var logical_face: int = 1      # 1 = right, -1 = left (flips instantly on input)
@@ -132,9 +133,33 @@ func _handle_input() -> void:
 	# Stub here; Task 10 wires the Input Map actions to accely_index/accelx/facing/fire.
 	pass
 
+# --- Turn state machine (Task 9, DESIGN.md §7) ---
+# 11 states (-5…+5); 2 steps/frame while distance ≥ 2, 1 step at distance 1 —
+# a full -5→+5 turn takes 5 frames. logical_face flips instantly on input.
+func face_left() -> void:
+	logical_face = -1
+	target_turn_state = -5
+
+func face_right() -> void:
+	logical_face = 1
+	target_turn_state = 5
+
+func face_camera() -> void:
+	target_turn_state = 0
+
 func _advance_turn_state() -> void:
-	# Stub here; Task 9 implements the turn state machine.
-	pass
+	var dist := target_turn_state - turn_state
+	if dist == 0:
+		return
+	var step := 2 if abs(dist) >= 2 else 1
+	turn_state += sign(dist) * step
+	turn_state = clamp(turn_state, -5, 5)
+
+func can_fire() -> bool:
+	return airborne and not dying and active_bullets < MAX_BULLETS
+
+func get_bullet_gravity() -> int:
+	return BULLET_GRAVITY_TABLE[abs(turn_state)]
 
 func _check_ground() -> void:
 	# Stub here; Task 13 implements source ground intersection (MIN_VY threshold, crash, launch).
