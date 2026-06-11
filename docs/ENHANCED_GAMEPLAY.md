@@ -51,9 +51,9 @@ These are corrections to source bugs and invisible friction. Nothing changes how
 
 **Tank spawn distribution**
 
-- **Source bug:** `ENTITY_X_H` (high byte of tank X position) is always set to 0, clustering all tanks at the world's left edge near the base.
-- **Fix:** Spawn tanks at player's current X position ± random spread, clamped to world bounds. Apply across all 8 depth planes. Tanks now appear throughout the world as the game's visual design implies.
-- **Implementation:** In `SpawnManager.gd`, when `GameState.gameplay_variant >= STANDARD`, override the X_H=0 path with `player_x + randi_range(-screen_widths, +screen_widths)`.
+- **Source bug:** In the `spawnTankPosV` path (player heading right, source lines 3920–3929), `ENTITY_X_H` is always stored as `0`, clustering tanks at the world's left edge when the player moves rightward. The `spawnTankNegV` path (player heading left, lines 3908–3915) correctly computes `ENTITY_X_H` from the player's position and is unaffected.
+- **Fix:** In the rightward spawn path only, replace the `ENTITY_X_H = 0` store with a spread computation. The leftward path is left untouched.
+- **Implementation:** In `SpawnManager.gd`, when `GameState.gameplay_variant >= STANDARD`, override only the `spawnTankPosV` branch with `player_x + randi_range(-screen_widths, +screen_widths)`, clamped to world bounds. Do not modify the `spawnTankNegV` branch.
 
 **Alien fire condition**
 
@@ -78,9 +78,22 @@ These are corrections to source bugs and invisible friction. Nothing changes how
 
 When the chopper dies with hostages aboard, show a brief "X hostages lost" overlay card during the explosion animation (before the sortie banner). Players currently have no feedback about why their killed count jumped. Card fades after 2 seconds — no input required.
 
-**Loss condition clarity**
+**Loss condition display**
 
-HUD shows remaining headroom: a small indicator (e.g. skull icon + count) showing how many more hostage deaths end the run. The formula is `64 - TOTAL_RESCUES - HOSTAGES_KILLED`. Updates in real time. Makes the stakes legible without changing the rules.
+The source tracks three independent counters (verified against `choplifter.s` lines 5082–5087):
+- `TOTAL_RESCUES` — at 64, you win.
+- `HOSTAGES_KILLED` — at 64, you lose.
+- `HOSTAGES_LEFT` — hostages still in houses (not yet in the open); initialized to 64.
+
+The HUD exposes all three as a compact triple-counter row:
+
+| Counter | Formula | Updates when |
+|---|---|---|
+| **Rescued** | `TOTAL_RESCUES` | Hostage delivered to base |
+| **Remaining** | `64 - TOTAL_RESCUES - HOSTAGES_KILLED` | Either counter changes |
+| **Killed** | `HOSTAGES_KILLED` | Hostage dies |
+
+All three update in real time. Together they give a complete situational read: how many are safe, how many are still in play, and how many have been lost.
 
 **Scroll lead rescaling**
 
@@ -126,6 +139,8 @@ The source has a single `MIN_VY` threshold — land above it and you die. Mode 2
 `CRASH_VY` = `MIN_VY × 2.0` (exact multiplier tuned during playtesting).
 
 **Bounce limit:** After 3 consecutive bounces without gaining meaningful altitude (defined as `vy_peak < MIN_VY × 0.5` between bounces), the next landing always crashes. Prevents infinite bouncing.
+
+**Counter reset:** The consecutive bounce counter resets when the chopper achieves `vy_peak >= MIN_VY × 0.5` on an upward trajectory after a bounce. `vy_peak` is the maximum upward speed reached after leaving the ground (pixels/frame, positive). A bounce that does not clear this threshold does not reset the counter. Any airborne period that clears the threshold — regardless of how long the chopper stays aloft — resets the count to 0.
 
 **Momentum bleed through turns**
 
@@ -177,7 +192,7 @@ Base values are from the source at level 3. Multipliers are initial tuning targe
 
 On chopper death, the following state is **preserved** into the next sortie:
 - `TOTAL_RESCUES` (rescued count)
-- `HOSTAGES_KILLED` (kill count — importantly, hostages aboard at death are added to this before continuity is saved)
+- `HOSTAGES_KILLED` (kill count — importantly, hostages aboard at death are added to this before continuity is saved; **in Reimagined mode this rule is overridden by §5.2** — aboard hostages become STRANDED instead of being counted as killed)
 - Which houses have been cleared (no hostages remaining inside)
 - `CURR_LEVEL`
 
@@ -194,6 +209,17 @@ Houses with remaining hostages are preserved — if a house still has occupants,
 ## 5. Tier C — Reimagined
 
 Includes all of Tier A and Tier B. These additions introduce new mechanics and feedback loops. The game is still recognizably Choplifter; the additions layer on top without replacing the core.
+
+### 5.0 Tier C Overrides of Tier B Rules
+
+When Reimagined is active, the following Tier B rules are explicitly superseded:
+
+| Tier B Rule | § | Reimagined Override | § |
+|---|---|---|---|
+| Hostages aboard at chopper death are added to `HOSTAGES_KILLED` | 4.3 | Aboard hostages spawn as STRANDED entities; they are only added to `HOSTAGES_KILLED` if their rescue timer expires | 5.2 |
+| Jets spawn with randomized initial facing (all levels) | 4.2 | When 2 jets are active simultaneously, one is assigned each approach direction; the Tier B random facing is overridden for the 2nd jet at spawn time | 5.4 |
+
+---
 
 ### 5.1 Mission Rating
 
@@ -216,6 +242,8 @@ After each sortie completion (win or loss) and after each wave delivery (end-of-
 | B | 1–3 casualties, ≤ 2 sorties |
 | C | 4–8 casualties or 3 sorties used |
 | F | 9+ casualties or all 3 sorties used |
+
+**Evaluation order:** Grades are checked top-down; the first matching condition wins. Example: a run with 0 casualties and 3 sorties matches Grade A (not Grade C), because A is evaluated before C.
 
 The grade is shown on a mission-end card. No leaderboard, no online component — purely a personal benchmark.
 
@@ -240,11 +268,14 @@ When the chopper dies with hostages aboard, instead of immediately counting them
 
 **One-time tutorial:** On the first death-with-scatter in a session, a brief tooltip appears: "Hostages stranded at crash site — rescue them before they're lost." Shown once per session, not once per game.
 
+**Sortie continuity:** STRANDED hostages persist into the next sortie. They are not subject to the field-hostage reset in §4.3. Their countdown timers continue from where they were at the moment the new sortie begins. The off-screen directional arrow reappears immediately on sortie start if any stranded hostages remain.
+
 **Implementation notes:**
 - Stranded hostages use a new `STRANDED` state in the hostage state machine.
 - Their countdown timer is a `float` on each `Hostage` node, decremented in `_process`.
 - They do not move, wave, or run — they sit at the crash position.
 - Enemy fire does not target stranded hostages (simplification — avoids complex targeting logic for an edge case).
+- On sortie init, do not clear `STRANDED` hostage nodes. Only clear `HOSTILE`, `RUNNING`, and `BOARDING` state hostages per §4.3.
 
 ### 5.3 Fuel System
 

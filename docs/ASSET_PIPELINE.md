@@ -1,8 +1,12 @@
 # Choplifter Clone — Asset Pipeline
 
-> Covers Mode 2 (Modern Pixel Art) and Mode 3 (Hi-Res) assets only.  
+> Covers Mode 2 (Modern Pixel Art) assets only.  
+> Mode 3 (Hi-Res) asset pipeline is planned for v2.0 — see [DESIGN.md §6.4](DESIGN.md).  
 > Mode 1 uses extracted Apple II sprites — see [DESIGN.md §6.2](DESIGN.md).  
 > All pipeline scripts live in `src/tools/`. All generated assets land in `assets/`.
+>
+> **Note:** This document supersedes DESIGN.md §6.3 (sprite tooling) and §9.1/§9.2 (audio tooling).
+> Where the two documents conflict, this document is authoritative for asset pipeline decisions.
 
 ---
 
@@ -13,13 +17,12 @@ The human role is: approve design decisions, run one-time setup, then ask for ge
 The assistant does the rest using MCP tools and pipeline scripts.
 
 | Asset Type | Tool Stack | Requires | Cost |
-|---|---|---|
----|
-| Sprites (Mode 2) | Scenario MCP (VS Code) → ImageMagick → Pillow post-process | Scenario Pro account ($45/mo) | Credits (~150 for full set) |
+|---|---|---|---|
+| Sprites (Mode 2) | Scenario MCP (VS Code) → ImageMagick → Pillow post-process | Scenario Pro account ($45/mo) | ~330 Scenario credits |
 | Sound Effects | Python (numpy/scipy) → ffmpeg | None | Free |
 | Music | Python (midiutil) → FluidSynth → ffmpeg | None | Free |
 
-**Why Scenario over generic image APIs:** Scenario supports training a **custom style model** from a small set of reference images. All 145 sprites are then generated from that one model, guaranteeing visual consistency — they look like they belong in the same game. Generic APIs (Replicate, DALL-E, etc.) generate each sprite independently with no style memory, producing an incoherent sprite set.
+**Why Scenario over generic image APIs:** Scenario supports training a **custom style model** from a small set of reference images. All ~165 sprites are then generated from that one model, guaranteeing visual consistency — they look like they belong in the same game. Generic APIs (Replicate, DALL-E, etc.) generate each sprite independently with no style memory, producing an incoherent sprite set.
 
 **Why not Replicate:** Zero style consistency across generations. Rejected.
 
@@ -35,7 +38,13 @@ The assistant does the rest using MCP tools and pipeline scripts.
 
 ```bash
 sudo apt install fluidsynth fluid-soundfont-gm python3-numpy python3-scipy
-pip install midiutil --break-system-packages
+
+# Recommended: install midiutil in a virtualenv to avoid system package conflicts
+python3 -m venv .venv && source .venv/bin/activate
+pip install midiutil
+
+# Alternative (single-dev toolbox only, bypasses PEP 668 protections):
+# pip install midiutil --break-system-packages
 ```
 
 Verify:
@@ -53,7 +62,7 @@ convert --version | head -1
 3. Upgrade to **Pro** ($45/mo) before training the custom style model — free tier cannot train custom models
 4. Generate your API key from the dashboard Settings page
 
-> **Note:** Scenario Pro gives 5,000 credits/month. The full 145-sprite set costs roughly 150–300 credits (4 candidates per sprite × ~0.5 credits/image at standard compute). One month of Pro covers the full set with ample headroom for re-runs.
+> **Note:** Scenario Pro gives 5,000 credits/month. The full ~165-sprite set costs roughly 330 credits at 4 candidates per sprite × ~0.5 credits/image at standard compute (165 × 4 × 0.5). One month of Pro covers the full set with ample headroom for re-runs. Sub-16px sprites (bullet, shell, missile, bomb, hostage frames — ~13 definitions) may not be suitable for AI generation and could be authored manually; if so, reduce the estimate proportionally.
 
 ### 2.3 Scenario MCP in VS Code
 
@@ -114,8 +123,13 @@ SCENARIO_API_KEY=your_key_here
 Pipeline scripts load this file with `python-dotenv` or direct `os.environ` reads.
 
 
+## 3. Sprite Pipeline (Mode 2)
+
+> **Status:** Scripts and configs in this section are **planned, not yet implemented**.
+> Implementation begins at v0.3. Commands below are specifications, not runnable today.
+
 **Generation:** Scenario MCP (via VS Code Copilot conversation)  
-**Post-processing:** `src/tools/postprocess_sprites.py`
+**Post-processing:** `src/tools/postprocess_sprites.py` *(planned)*
 
 ### 3.1 How It Works
 
@@ -134,10 +148,27 @@ For each sprite group:
   1. Assistant calls `run_model` with the trained style model + sprite-specific prompt
   2. 4 candidates generated per sprite
   3. Assistant calls `display_asset` to show candidates inline
-  4. Assistant auto-selects best candidate by silhouette/quality heuristic
+  4. Assistant scores candidates and selects the best (see heuristic below)
   5. Candidate downloaded to assets/graphics/mode2/_candidates/<name>/
   6. Auto-selected sprite is post-processed (Phase 3)
 ```
+
+**Auto-selection heuristic** — candidates are scored on four dimensions; highest total wins:
+
+| Dimension | Metric | Good range | Weight |
+|---|---|---|---|
+| Silhouette clarity | Canny edge density on alpha-extracted sprite (edges / total px) | 0.05 – 0.25 | 3× |
+| Alpha coverage | Non-transparent pixel ratio after background removal | 10% – 70% | 2× |
+| Palette compliance | Unique colors after Endesga 32 quantize | ≤ 32 (lower is better for small sprites) | 1× |
+| Background removability | Confidence score of flood-fill BG detection (corner-pixel uniformity) | > 0.8 | 2× |
+
+Scoring: each dimension maps its value into [0, 1] within the Good range; values outside the range score 0. Weighted sum → best candidate selected. If all 4 candidates score below 0.3 total, the group is flagged for manual review — all candidates are kept in `_candidates/`, none is auto-promoted, and a warning is printed to stdout.
+
+> **Sub-16px sprites (bullet 6×4, shell 8×4, missile 12×4, bomb 6×8, hostage frames 8×14):**
+> AI generation at Scenario's native output resolution (~512px) cannot be downscaled to ≤16px
+> and produce usable pixel art. These ~13 sprite definitions should be authored manually
+> (Aseprite, Piskel, or any pixel editor) rather than via Scenario. Exclude them from credit
+> estimates and from the per-group generation workflow.
 
 **Phase 3 — Post-processing (automated Python)**
 ```
@@ -146,7 +177,9 @@ For each selected sprite:
   b. ImageMagick: quantize to Endesga 32 palette (max 32 colors)
   c. Pillow: detect and remove background color → alpha channel
   d. Pillow: score silhouette clarity; flag if below threshold
-  e. Save to assets/graphics/mode2/<group>/<name>.png
+  e. Save to:
+     - Non-biome sprites: assets/graphics/mode2/<group>/<name>.png
+     - Per-biome sprites:  assets/graphics/mode2/biome_<biome>/<group>/<name>.png
 ```
 
 ### 3.2 Style Reference Images
@@ -174,6 +207,10 @@ All sprites are defined in `src/tools/config/sprites_mode2.json`. Each entry:
   "biome": null
 }
 ```
+
+When `"biome"` is non-null (e.g., `"biome": "desert"`), the post-processor saves to
+`assets/graphics/mode2/biome_<biome>/<group>/<name>.png`.
+When `"biome"` is null, output is `assets/graphics/mode2/<group>/<name>.png`.
 
 **Full sprite inventory for Mode 2:**
 
@@ -203,7 +240,7 @@ All sprites are defined in `src/tools/config/sprites_mode2.json`. Each entry:
 | `font_digits` | 10 | 8×10 | Digits 0–9, Mode 2 HUD |
 | `hud_elements` | ~8 | various | Counter labels, borders, icons |
 
-**Total:** ~145 sprites. At 4 candidates each, approximately 150–300 Scenario credits.
+**Total:** ~165 sprites. At 4 candidates each, approximately 330 Scenario credits (see §2.2 for breakdown). Sub-16px sprites may need manual authoring — see §3.1 Phase 2 note.
 
 ### 3.4 Post-Processing Script
 
@@ -253,7 +290,9 @@ Per sprite group (ongoing):
 
 ## 4. Sound Effects Pipeline
 
-**Script:** `src/tools/generate_sfx.py`
+> **Status:** Script is **planned, not yet implemented**. Implementation begins at v0.2.
+
+**Script:** `src/tools/generate_sfx.py` *(planned)*
 
 No API required. All sounds are synthesized from waveform parameters using
 **numpy** + **scipy** and exported via **ffmpeg**.
@@ -306,8 +345,6 @@ SFX_SPECS = {
 | `hostage_death.ogg` | Hostage killed | Descending minor 3rd tone |
 | `landing.ogg` | Chopper lands | Thud + brief settle noise |
 | `alien_crackle.ogg` | Alien saucer (3 pitch variants) | Electrical crackle, 3 files |
-| `victory_sting.ogg` | Mission complete | 4-note ascending fanfare |
-| `loss_sting.ogg` | Game over | 3-note descending phrase |
 | `fire_telegraph.ogg` | Enemy charge tell (Mode 2+) | Brief rising tone, 0.3s |
 | `stranded_warning.ogg` | Stranded hostage timer (Mode 2+) | Slow pulse beep |
 | `fuel_low.ogg` | Fuel warning (Mode 2+ Reimagined) | Repeating low pulse |
@@ -315,7 +352,7 @@ SFX_SPECS = {
 | `ui_select.ogg` | Menu navigation | Short click |
 | `ui_confirm.ogg` | Menu confirm | Two-tone beep |
 
-**Total: 21 files.** All Mode 1 compatible except where noted (Mode 2+).
+**Total: 20 files** (`alien_crackle` counts as 3 files — one per pitch variant; victory/loss stings are in the Music pipeline, not here). All Mode 1 compatible except where noted (Mode 2+).
 
 The engine loop uses a seamless-loop technique: the waveform is phase-aligned at
 loop point so Godot can loop it without clicking.
@@ -340,7 +377,9 @@ Once approved, re-run without `--preview` to produce the final OGG.
 
 ## 5. Music Pipeline
 
-**Script:** `src/tools/generate_music.py`
+> **Status:** Script is **planned, not yet implemented**. Implementation begins at v0.3.
+
+**Script:** `src/tools/generate_music.py` *(planned)*
 
 No API required. Music is composed in Python using **midiutil**, rendered to WAV
 with **FluidSynth** and the chiptune soundfont, and converted to OGG with ffmpeg.
@@ -356,10 +395,10 @@ by `AudioManager.gd` based on game state:
 | Tension | `music_<biome>_tension.ogg` | Enemies nearby or approaching |
 | Action | `music_<biome>_action.ogg` | Taking fire, rescue in progress |
 
-Additionally:
-- `music_sting_victory.ogg` — mission complete fanfare (one-shot)
-- `music_sting_loss.ogg` — game over phrase (one-shot)
-- `music_sting_sortie.ogg` — sortie banner music (one-shot)
+Additionally (one-shot stings — Music pipeline owns all end-game stings):
+- `music_sting_victory.ogg` — mission complete fanfare
+- `music_sting_loss.ogg` — game over phrase
+- `music_sting_sortie.ogg` — sortie banner music
 
 All three layers for a biome share the same **BPM, key, and loop length** so
 they crossfade cleanly. Layers build on each other: tension adds percussion to
@@ -385,9 +424,9 @@ so they phase-lock when crossfaded.
 
 ```
 midiutil (Python) → .mid file
-  → FluidSynth --audio-driver=file --soundfont=chiptune.sf2
+  → fluidsynth -ni -F output.wav chiptune.sf2 input.mid
   → .wav file (44100 Hz, stereo)
-  → ffmpeg -c:a libvorbis -q:a 4
+  → ffmpeg -c:a libvorbis -q:a 4 -i output.wav output.ogg
   → .ogg file
 ```
 
@@ -460,7 +499,7 @@ assets/
 │   │   ├── engine_loop.ogg
 │   │   ├── bullet_fire.ogg
 │   │   ├── explosion.ogg
-│   │   └── ... (21 files total)
+│   │   └── ... (20 files total)
 │   ├── music/
 │   │   ├── music_desert_calm.ogg
 │   │   ├── music_desert_tension.ogg
@@ -473,14 +512,19 @@ assets/
 │   ├── original-sprites/              ← Mode 1, already extracted
 │   │   └── ...
 │   ├── mode2/
-│   │   ├── chopper_side/
+│   │   ├── chopper_side/              ← non-biome sprites: mode2/<group>/
 │   │   │   ├── chopper_side_0.png
 │   │   │   └── ... (11 files)
 │   │   ├── jet/
 │   │   ├── tank/
-│   │   ├── hostage_running/
-│   │   ├── biome_desert/
+│   │   ├── biome_desert/              ← per-biome sprites: mode2/biome_<x>/<group>/
+│   │   │   ├── mountain/
+│   │   │   ├── ground/
+│   │   │   ├── house/
+│   │   │   ├── base/
+│   │   │   └── fence_tower/
 │   │   ├── biome_jungle/
+│   │   │   └── ... (same sub-groups)
 │   │   └── _candidates/               ← not committed (in .gitignore)
 │   └── menu/                          ← hi-res menu assets (separate pipeline, TBD)
 ```
@@ -524,7 +568,7 @@ incremental updates cheap — tweaking one sprite's post-processing only reproce
 | Milestone | Asset Work |
 |---|---|
 | v0.1 | None (Mode 1 sprites already extracted) |
-| v0.2 | SFX pipeline: implement and generate all 21 SFX |
+| v0.2 | SFX pipeline: implement and generate all 20 SFX |
 | v0.3 | Sprite pipeline: train Scenario style model, implement postprocess_sprites.py, generate + post-process Desert biome sprites. Music pipeline: implement + generate Desert biome music. |
 | v0.4 | Sprite/music pipeline: Jungle + Arctic biomes |
 | v0.5 | Sprite/music pipeline: Tropical Island + Alien World biomes |
@@ -543,7 +587,7 @@ incremental updates cheap — tweaking one sprite's post-processing only reproce
 | Pillow | system (present) | — |
 | numpy | — | `sudo apt install python3-numpy` |
 | scipy | — | `sudo apt install python3-scipy` |
-| midiutil | — | `pip install midiutil --break-system-packages` |
+| midiutil | — | `python3 -m venv .venv && pip install midiutil` (see §2.1) |
 | FluidSynth | — | `sudo apt install fluidsynth fluid-soundfont-gm` |
 | chiptune.sf2 | — | Download (see §2.4) |
 | Scenario MCP | — | Add via VS Code Copilot MCP panel (see §2.3) |

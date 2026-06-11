@@ -23,6 +23,7 @@ docs/blondie-ChoplifterReverse
 # Editors & IDEs
 # ──────────────────────────────────────────────
 .vscode/settings.json
+.vscode/mcp.json
 .vscode/*.code-workspace
 !.vscode/extensions.json
 !.vscode/launch.json

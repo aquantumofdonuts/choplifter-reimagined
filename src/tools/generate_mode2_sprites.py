@@ -75,6 +75,12 @@ def submit_job(sprite: dict) -> str:
         r = requests.post(url, json=payload, headers=HEADERS, timeout=30)
         if r.status_code == 429:
             wait = RETRY_BASE * (2 ** attempt)
+            try:
+                remaining = int(r.json().get("details", {}).get("remainingSeconds", 0))
+                if remaining > wait:
+                    wait = remaining + 5
+            except Exception:
+                pass
             print(f"    [429] rate-limited, waiting {wait}s (attempt {attempt+1}/{RETRY_MAX})")
             time.sleep(wait)
             continue
