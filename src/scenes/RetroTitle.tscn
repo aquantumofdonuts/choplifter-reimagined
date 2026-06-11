@@ -1,10 +1,10 @@
 [gd_scene load_steps=6 format=3 uid="uid://retrotitle00001"]
 
 [ext_resource type="Script" path="res://src/scenes/RetroTitle.gd" id="1_rt"]
-[ext_resource type="Texture2D" uid="uid://cb02epfjbq3ax" path="res://assets/graphics/mode1/title/broderbund.png" id="2_bb"]
-[ext_resource type="Texture2D" uid="uid://c4ht75amwlv7v" path="res://assets/graphics/mode1/title/choplifter_logo.png" id="3_logo"]
+[ext_resource type="Texture2D" uid="uid://c4ht75amwlv7v" path="res://assets/graphics/mode1/title/broderbund.png" id="2_bb"]
+[ext_resource type="Texture2D" uid="uid://bhjd5gdmelr4q" path="res://assets/graphics/mode1/title/choplifter_logo.png" id="3_logo"]
 [ext_resource type="Texture2D" uid="uid://dkodtrnc6v74m" path="res://assets/graphics/mode1/title/dan_gorlin.png" id="4_dg"]
-[ext_resource type="Texture2D" uid="uid://bhjd5gdmelr4q" path="res://assets/graphics/mode1/title/rescue_hostages.png" id="5_rh"]
+[ext_resource type="Texture2D" uid="uid://cb02epfjbq3ax" path="res://assets/graphics/mode1/title/rescue_hostages.png" id="5_rh"]
 
 [node name="RetroTitle" type="Control"]
 layout_mode = 3
