@@ -47,8 +47,8 @@ docs/blondie-ChoplifterReverse
 .godot/
 *.translation
 
-# Godot 3.x
-*.import
+# Godot — exports & local presets
+# NOTE: *.import sidecars are Godot 4 import metadata and MUST be committed (they pin resource UIDs)
 export.cfg
 export_presets.cfg
 .mono/
