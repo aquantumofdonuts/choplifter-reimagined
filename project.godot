@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://src/autoload/GameState.gd"
+Settings="*res://src/autoload/Settings.gd"
 
 [editor_plugins]
 
