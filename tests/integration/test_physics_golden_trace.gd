@@ -5,6 +5,12 @@ extends GdUnitTestSuite
 func before_test() -> void:
 	GameState.reset()
 
+# Release held actions even if a test body aborts on a runtime error, so a held action
+# can't leak into the next test.
+func after_test() -> void:
+	Input.action_release("thrust_up")
+	Input.action_release("descend")
+
 func test_thrust_trace_through_physics_process() -> void:
 	var chopper := preload("res://src/entities/Chopper.tscn").instantiate()
 	add_child(chopper)
@@ -36,7 +42,7 @@ func test_gravity_trace_through_physics_process() -> void:
 func test_descend_and_land_via_input_path() -> void:
 	# Third DoD gate (R3-C1 / R3-H8): the chopper must be able to LAND using only real input
 	# actions — the other two gates bypass the input layer and stay green even when no control
-	# path can reach MIN_VY. Descend (index 0, target −10) passes vy_hi ≤ −5 within 2 frames.
+	# path can reach MIN_VY. Descend (index 0, target −10) passes vy_hi ≤ −5 on the first frame (the ease step from 0 toward −10 is −5 immediately).
 	var chopper := preload("res://src/entities/Chopper.tscn").instantiate()
 	add_child(chopper)
 	chopper.pos_y = 40.0
