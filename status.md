@@ -64,7 +64,11 @@
   scenes nulled in-test: a tank shell would kill the landed chopper and SceneTransition mid-suite)
   and `tests/integration/test_physics_golden_trace.gd` (thrust/gravity traces + descend-to-land,
   all via real Input actions). 62 GdUnit4 tests green, runner exit 0.
-- Next step: Phase 11 (Task 20: HUD; Task 21: menus)
+- **Done (Tasks 20/20b, 2de02c4 + abf74cc):** HUD (top-strip rescued/killed/aboard counters polled
+  from GameState per frame + 3 dimming chopper life icons; PROCESS_MODE_ALWAYS; World.tscn now
+  instances HUD.tscn) and PauseMenu (layer 50, Resume/QuitToMenu; World._unhandled_input toggles
+  on "pause" action, guarded by GameState.input_locked). 63 GdUnit4 tests green.
+- Next step: Phase 11 (Task 21: menus)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
