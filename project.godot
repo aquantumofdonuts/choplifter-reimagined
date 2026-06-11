@@ -27,6 +27,17 @@ window/stretch/mode="viewport"
 window/stretch/aspect="keep"
 window/stretch/scale_mode="integer"
 
+[layer_names]
+
+2d_physics/layer_1="world"
+2d_physics/layer_2="chopper"
+2d_physics/layer_3="enemies"
+2d_physics/layer_4="player_bullets"
+2d_physics/layer_5="enemy_projectiles"
+2d_physics/layer_6="hostages"
+2d_physics/layer_7="base"
+2d_physics/layer_8="houses"
+
 [physics]
 
 common/physics_ticks_per_second=60
