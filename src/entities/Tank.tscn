@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3 uid="uid://tank0000000001"]
+
+[ext_resource type="Script" path="res://src/entities/Tank.gd" id="1_tk"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/tank/tread_1.png" id="2_body"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/tank_cannon/up.png" id="3_can"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hb"]
+size = Vector2(16, 8)
+
+[node name="Tank" type="CharacterBody2D"]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_tk")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(0, -4)
+shape = SubResource("RectangleShape2D_hb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -4)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_body")
+
+[node name="Cannon" type="Sprite2D" parent="."]
+position = Vector2(0, -7)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("3_can")
