@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 
-func before_each():
+func before_test():
+	# GdUnit4 hook is before_test, NOT before_each (plan's name was never called)
 	GameState.reset()
 
 func test_initial_values():

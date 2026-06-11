@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 GameState="*res://src/autoload/GameState.gd"
 Settings="*res://src/autoload/Settings.gd"
+AudioManager="*res://src/autoload/AudioManager.gd"
 
 [editor_plugins]
 

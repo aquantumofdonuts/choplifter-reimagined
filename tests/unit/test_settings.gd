@@ -16,7 +16,8 @@ func test_save_and_reload():
 	Settings.load_settings()      # Reload from user://settings.cfg
 	assert_float(Settings.master_volume).is_equal(0.5)
 
-func after_each():
-	# Restore defaults so saved cfg doesn't pollute other tests
+func after_test():
+	# Restore defaults so saved cfg doesn't pollute other tests or the next process
+	# (GdUnit4 hook is after_test, NOT after_each — the plan's name was never called)
 	Settings.master_volume = 1.0
 	Settings.save()
