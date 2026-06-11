@@ -5,7 +5,7 @@ class_name PauseMenu
 @onready var quit_button: Button = $Panel/VBox/QuitToMenu
 
 func _ready() -> void:
-	layer = 50  # Above HUD (layer 0), below SceneTransition (layer 100)
+	layer = 50  # Above HUD (default layer 1), below SceneTransition (layer 100)
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
@@ -33,6 +33,8 @@ func _on_resume_pressed() -> void:
 	hide_pause()
 
 func _on_quit_to_menu_pressed() -> void:
-	get_tree().paused = false
+	if GameState.input_locked:
+		return
+	hide_pause()
 	GameState.input_locked = false
 	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")

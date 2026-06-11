@@ -35,7 +35,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		# Don't open the pause menu mid scene-transition (input_locked) — the fade/scene swap
-		# must not race a paused tree. Pausing after an _ending latch is otherwise harmless.
+		# must not race a paused tree. That guard is what matters here: pausing during the
+		# death/victory windows (before _ending latches a transition) is safe only because
+		# SceneTransition now force-unpauses the tree on every scene change.
 		if GameState.input_locked:
 			return
 		if pause_menu.visible:

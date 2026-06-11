@@ -6,6 +6,8 @@ class_name HUD
 @onready var aboard_label: Label = $Panel/Aboard
 @onready var lives_container: HBoxContainer = $Panel/Lives
 
+const SPENT_LIFE_ALPHA := 0.3  # dimmed icon alpha for lives already spent
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # Visible during pause
 	refresh()
@@ -26,4 +28,4 @@ func _update_lives() -> void:
 	for i in range(lives_container.get_child_count()):
 		var icon := lives_container.get_child(i) as TextureRect
 		if icon:
-			icon.modulate.a = 1.0 if i < GameState.lives_remaining else 0.3
+			icon.modulate.a = 1.0 if i < GameState.lives_remaining else SPENT_LIFE_ALPHA

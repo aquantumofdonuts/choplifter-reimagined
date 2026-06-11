@@ -32,6 +32,7 @@ func transition_to(scene_path: String) -> void:
 	await _fade_to(1.0)
 	apply_scale_mode_for(scene_path)
 	get_tree().change_scene_to_file(scene_path)
+	get_tree().paused = false  # scene changes must never strand a paused tree
 	await get_tree().process_frame
 	await _fade_to(0.0)
 	GameState.input_locked = false
