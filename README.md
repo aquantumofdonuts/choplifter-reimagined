@@ -1,6 +1,6 @@
 # Choplifter Clone
 
-A modern clone of the classic 1982 Broderbund arcade game *Choplifter*, in which the player pilots a helicopter to rescue hostages from enemy territory.  Based on the reverse-engineered Apple II source code by Quinn Dunki (Blondihacks) and inspired by the original game design by Dan Gorlin.
+A modern clone of the classic 1982 Broderbund arcade game *Choplifter*, in which the player pilots a helicopter to rescue hostages from enemy territory.  
 
 ## Overview
 
@@ -47,7 +47,7 @@ This is a personal/learning project. PRs and issues welcome.
 ## Credits & Acknowledgements
 
 - **Original game:** *Choplifter* (1982) was created by **Dan Gorlin** and published by **Broderbund**.
-- **Reverse-engineered source:** The clean-room decompiled Apple II source code by **Quinn Dunki (Blondihacks)** is available at [github.com/blondie7575/ChoplifterReverse](https://github.com/blondie7575/ChoplifterReverse). It is referenced as a guide for understanding the original game's behavior and is not redistributed in this repository.
+- **Reverse-engineered source:** This project is based on the clean-room decompiled Apple II source code by **Quinn Dunki (Blondihacks)**, available at [github.com/blondie7575/ChoplifterReverse](https://github.com/blondie7575/ChoplifterReverse). It is referenced as a guide for understanding the original game's behavior and is not redistributed in this repository.
   - Full writeup: [Reversing Choplifter](https://blondihacks.com/reversing-choplifter)
 
 All rights to the original *Choplifter* remain with their respective owners. The reverse-engineered source is the work of Quinn Dunki and is credited accordingly.

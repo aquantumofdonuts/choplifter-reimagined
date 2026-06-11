@@ -128,3 +128,26 @@ Both reviewers agree the plan gets these right (verified against source):
 **Blind spots.** Alpha initially understated the alien-fire divergence and rated the executor-clobber risk Low despite the pipeline being mid-run. Beta added no new Criticals of its own — its strength was auditing the verification machinery rather than the mechanics. Both reviewers note that round 2's MF3 "fix" (independent per-type spawn checks) *introduced* R3-H2 — a caution that review-driven fixes need the same source verification as original plan content.
 
 **Highest-value next action.** A single repair commit to the plan covering R3-C1/C2/C3 + the third DoD gate, before any further task execution. The Medium set can be batched into the affected task texts. Nothing in this review touches the running asset pipeline.
+
+---
+
+## Addendum (2026-06-11, post-review fix pass)
+
+**R3-C4 — The house model was inverted (found while wiring R3-M9; both reviewers missed it).**
+While answering M9's "who burns houses?", the fix pass found the plan's entire house mechanic was
+backwards. Source ground truth: `houseStates` polarity is **$00 = untouched/closed, $01 = on
+fire/open** (choplifter.s:5097); `igniteHouse` "sets a house on fire, **releasing** all the
+hostages inside" (8985–8998) and is triggered by ordnance hitting the house strip (8605–8616);
+`spawnHostages` skips houses whose state is **0** — hostages emerge **only from ignited houses**.
+At game start, `spawnInitialHostages` (11341–11360) pre-ignites house 3 and fields 8 of its
+hostages. The plan had hostages emerging from *intact* houses from frame 0, fire *killing*
+occupants, and nothing ever igniting a house. Both reviewers read the eligibility check with the
+plan's polarity and validated "spawn-anytime gating" as faithful — a shared blind spot worth
+noting for round 4: verify the *meaning* of each flag against its declaration comment, not just
+the control flow.
+
+Applied in the same fix pass: corrected polarity and release semantics, bullet→house ignition
+wiring (new collision layer 8), game-start house-3 setup seeded through the R3-C3
+`field_hostage_records` machinery, and ledger/test updates. One open question is flagged in the
+plan: the source ordnance-vs-house check covers house pages 0–2 only (`cmp #$03`), which is
+consistent with house 3 starting open but should be verified in an emulator before being relied on.
