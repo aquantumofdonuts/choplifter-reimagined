@@ -41,7 +41,7 @@ FEATURES
 
 PURE ARCADE — NO NONSENSE
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-Air Rescue has no ads, no energy timers, no pay-to-win mechanics. It is a complete arcade game — the kind that used to cost a quarter per play, now in your pocket for free.
+Air Rescue has no ads, no energy timers, no pay-to-win mechanics. It is a complete arcade game — the kind that used to cost a quarter per play, now in the palm of your hand.
 
 High score. Game over. Try again.
 ```
