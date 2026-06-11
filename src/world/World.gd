@@ -15,6 +15,7 @@ signal victory_achieved  # emitted by HostageManager when TOTAL_HOSTAGES are res
 @onready var hostage_manager: HostageManager = $HostageManager
 @onready var terrain: Terrain = $Terrain
 @onready var hud: CanvasLayer = $HUD
+@onready var pause_menu: PauseMenu = $PauseMenu
 
 var _frame_count: int = 0  # global frame counter (replicates FRAME_COUNT)
 var _ending: bool = false  # end-state latch: first of {death, victory, loss} wins; freezes the sim
@@ -30,6 +31,17 @@ func _ready() -> void:
 	victory_achieved.connect(_start_victory)
 	hostage_manager.setup(self, chopper)
 	hostage_manager.restore_field_hostages()  # R3-C3: re-instantiate survivors from the prior sortie
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause"):
+		# Don't open the pause menu mid scene-transition (input_locked) — the fade/scene swap
+		# must not race a paused tree. Pausing after an _ending latch is otherwise harmless.
+		if GameState.input_locked:
+			return
+		if pause_menu.visible:
+			pause_menu.hide_pause()
+		else:
+			pause_menu.show_pause()
 
 func _physics_process(_delta: float) -> void:
 	if _ending:

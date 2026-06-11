@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://world000000001"]
+[gd_scene load_steps=11 format=3 uid="uid://world000000001"]
 
 [ext_resource type="Script" path="res://src/world/World.gd" id="1_w"]
 [ext_resource type="PackedScene" path="res://src/entities/Chopper.tscn" id="2_ch"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://src/ui/HUD.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://src/world/Base.tscn" id="7_ba"]
 [ext_resource type="PackedScene" path="res://src/world/House.tscn" id="8_hs"]
+[ext_resource type="PackedScene" path="res://src/ui/PauseMenu.tscn" id="9_pm"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gnd"]
 size = Vector2(4480, 32)
@@ -28,6 +29,8 @@ script = ExtResource("4_hm")
 [node name="Terrain" parent="." instance=ExtResource("5_tr")]
 
 [node name="HUD" parent="." instance=ExtResource("6_hud")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("9_pm")]
 
 [node name="Base" parent="." instance=ExtResource("7_ba")]
 
