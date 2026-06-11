@@ -17,13 +17,28 @@ func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) != OK:
 		return  # Use defaults on missing or corrupt file
-	master_volume = cfg.get_value("audio", "master_volume", 1.0)
-	sfx_volume = cfg.get_value("audio", "sfx_volume", 1.0)
-	music_volume = cfg.get_value("audio", "music_volume", 0.8)
-	music_enabled = cfg.get_value("audio", "music_enabled", false)
-	selected_visual_mode = cfg.get_value("game", "visual_mode", 1)
-	selected_variant = cfg.get_value("game", "variant", 0)
-	fuel_enabled = cfg.get_value("game", "fuel_enabled", false)
+	# settings.cfg is user-writable: every value must be type-checked and range-clamped, or a
+	# hand-edited file crashes at boot (typed-assignment error) or later in menu code that
+	# indexes by visual_mode (e.g. MainMenu's names[visual_mode - 1]).
+	master_volume = _read_float(cfg, "audio", "master_volume", 1.0, 0.0, 1.0)
+	sfx_volume = _read_float(cfg, "audio", "sfx_volume", 1.0, 0.0, 1.0)
+	music_volume = _read_float(cfg, "audio", "music_volume", 0.8, 0.0, 1.0)
+	music_enabled = _read_bool(cfg, "audio", "music_enabled", false)
+	selected_visual_mode = _read_int(cfg, "game", "visual_mode", 1, 1, 3)  # GameState.VisualMode range
+	selected_variant = _read_int(cfg, "game", "variant", 0, 0, 2)         # GameState.GameplayVariant range
+	fuel_enabled = _read_bool(cfg, "game", "fuel_enabled", false)
+
+func _read_int(cfg: ConfigFile, section: String, key: String, default: int, lo: int, hi: int) -> int:
+	var v: Variant = cfg.get_value(section, key, default)
+	return clampi(v, lo, hi) if v is int else default
+
+func _read_float(cfg: ConfigFile, section: String, key: String, default: float, lo: float, hi: float) -> float:
+	var v: Variant = cfg.get_value(section, key, default)
+	return clampf(v, lo, hi) if (v is float or v is int) else default
+
+func _read_bool(cfg: ConfigFile, section: String, key: String, default: bool) -> bool:
+	var v: Variant = cfg.get_value(section, key, default)
+	return v if v is bool else default
 
 func save() -> void:
 	var cfg := ConfigFile.new()

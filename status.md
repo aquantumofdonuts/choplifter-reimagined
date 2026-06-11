@@ -77,6 +77,10 @@
   insta-skip); **v0.1 deviation:** DEMO is a static card looping back to BRODERBUND after ~10 s —
   recorded-input demo (`data/demo_input.tres`) deferred to v1.0, file intentionally not created.
   64 tests green; Boot→MainMenu and RetroTitle full-cycle headless smoke runs clean.
+- **Tasks 21/22 review follow-ups:** rotated RetroTitle texture UIDs fixed (a8c8aab — UID silently
+  wins over path in Godot 4.6); code review hardened `Settings.load_settings()` with type-guarded,
+  range-clamped reads (user-editable settings.cfg with `visual_mode=99` crashed MainMenu's
+  `names[visual_mode - 1]`; a string value crashed the autoload at boot). 64 tests still green.
 - Next step: Task 24 (wire SFX to game events; Task 23's SFX assets were pre-generated in e71e257)
 
 ## Key settled decisions
