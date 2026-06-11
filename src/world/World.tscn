@@ -5,7 +5,7 @@
 [ext_resource type="Script" path="res://src/world/SpawnManager.gd" id="3_sm"]
 [ext_resource type="Script" path="res://src/world/HostageManager.gd" id="4_hm"]
 [ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="5_tr"]
-[ext_resource type="Script" path="res://src/ui/HUD.gd" id="6_hud"]
+[ext_resource type="PackedScene" path="res://src/ui/HUD.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://src/world/Base.tscn" id="7_ba"]
 [ext_resource type="PackedScene" path="res://src/world/House.tscn" id="8_hs"]
 
@@ -27,8 +27,7 @@ script = ExtResource("4_hm")
 
 [node name="Terrain" parent="." instance=ExtResource("5_tr")]
 
-[node name="HUD" type="CanvasLayer" parent="."]
-script = ExtResource("6_hud")
+[node name="HUD" parent="." instance=ExtResource("6_hud")]
 
 [node name="Base" parent="." instance=ExtResource("7_ba")]
 

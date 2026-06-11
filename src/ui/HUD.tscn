@@ -1,0 +1,96 @@
+[gd_scene load_steps=3 format=3 uid="uid://hudingame00001"]
+
+[ext_resource type="Script" path="res://src/ui/HUD.gd" id="1_hud"]
+[ext_resource type="Texture2D" uid="uid://cd1wu7ukxxtsw" path="res://assets/graphics/mode1/chopper_side/tilt_0.png" id="2_life"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 16.0
+grow_horizontal = 2
+
+[node name="RescuedTitle" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 2.0
+offset_right = 66.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 10
+text = "RESCUED"
+
+[node name="Rescued" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 68.0
+offset_top = 2.0
+offset_right = 88.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 10
+text = "00"
+
+[node name="KilledTitle" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 110.0
+offset_top = 2.0
+offset_right = 160.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 10
+text = "KILLED"
+
+[node name="Killed" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 160.0
+offset_top = 2.0
+offset_right = 180.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 10
+text = "00"
+
+[node name="AboardTitle" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 202.0
+offset_top = 2.0
+offset_right = 256.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 10
+text = "ABOARD"
+
+[node name="Aboard" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 258.0
+offset_top = 2.0
+offset_right = 278.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 10
+text = "00"
+
+[node name="Lives" type="HBoxContainer" parent="Panel"]
+layout_mode = 0
+offset_left = 388.0
+offset_top = 4.0
+offset_right = 474.0
+offset_bottom = 12.0
+theme_override_constants/separation = 6
+
+[node name="Life1" type="TextureRect" parent="Panel/Lives"]
+custom_minimum_size = Vector2(22, 8)
+layout_mode = 2
+texture = ExtResource("2_life")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Life2" type="TextureRect" parent="Panel/Lives"]
+custom_minimum_size = Vector2(22, 8)
+layout_mode = 2
+texture = ExtResource("2_life")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Life3" type="TextureRect" parent="Panel/Lives"]
+custom_minimum_size = Vector2(22, 8)
+layout_mode = 2
+texture = ExtResource("2_life")
+expand_mode = 1
+stretch_mode = 5
