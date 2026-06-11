@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://world000000001"]
+[gd_scene load_steps=9 format=3 uid="uid://world000000001"]
 
 [ext_resource type="Script" path="res://src/world/World.gd" id="1_w"]
 [ext_resource type="PackedScene" path="res://src/entities/Chopper.tscn" id="2_ch"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://src/world/HostageManager.gd" id="4_hm"]
 [ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="5_tr"]
 [ext_resource type="Script" path="res://src/ui/HUD.gd" id="6_hud"]
+[ext_resource type="PackedScene" path="res://src/world/Base.tscn" id="7_ba"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gnd"]
 size = Vector2(4480, 32)
@@ -27,6 +28,8 @@ script = ExtResource("4_hm")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("6_hud")
+
+[node name="Base" parent="." instance=ExtResource("7_ba")]
 
 [node name="Ground" type="StaticBody2D" parent="."]
 position = Vector2(2792, 16)

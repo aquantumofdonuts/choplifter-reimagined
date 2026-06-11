@@ -24,6 +24,12 @@ const BULLET_GRAVITY_TABLE: Array[int] = [-2, -2, -1, -1, -1, 0]
 # Source ground reference; altitude 0 sits on the ground line (Y flip applied at render only).
 const GROUND_SRC_Y: float = 0.0
 
+# --- Landing constants (choplifter.s:4792–4804), in source high-byte units ---
+const MIN_VY_HI: int = -5        # MIN_VY $FBA0 — min downward speed to register ground
+const CRASHSPEED_HI: int = 0x15  # CRASHSPEED $EB01 — |vx_hi| at/above which a touchdown crashes
+const LAUNCHTHRESH_HI: int = 1   # LAUNCHTHRESH $0100 — upward speed to leave the ground
+const MAX_SINK: int = 6          # MAX_SINK $06 — max ground settle depth (source units)
+
 # --- 16-bit fixed-point velocity (source ZP_VELX_16 / ZP_VELY_16) ---
 var vel_x: int = 0   # 8.8 fixed point, source units/frame
 var vel_y: int = 0   # 8.8 fixed point; low byte is forced to 0 each frame by the Y algorithm
@@ -38,6 +44,7 @@ var target_turn_state: int = 0 # turn_state animates toward this (Task 9)
 var accelx: int = 0            # ZP_STICKX: joystick-X input, -5…+5; |accelx| indexes ACCEL_X_TABLE
 var turn_state: int = 0        # -5 (left side) … 0 (head-on) … +5 (right side); rotor facing
 var logical_face: int = 1      # 1 = right, -1 = left (flips instantly on input)
+var over_base: bool = false    # set true while the chopper hitbox overlaps the Base Area2D
 var airborne: bool = false     # set by ground check (Task 13)
 var landed: bool = false       # set by ground check (Task 13)
 var landed_at_base: bool = false
@@ -197,8 +204,52 @@ func get_bullet_gravity() -> int:
 	return BULLET_GRAVITY_TABLE[abs(turn_state)]
 
 func _check_ground() -> void:
-	# Stub here; Task 13 implements source ground intersection (MIN_VY threshold, crash, launch).
-	pass
+	if pos_y > 0.0:
+		airborne = true
+		landed = false
+		landed_at_base = false
+		return
+	# At or below the ground line.
+	pos_y = max(pos_y, float(-MAX_SINK))
+	var vy_h := vel_y_hi()
+	if airborne:
+		# Touchdown only registers when descending at least MIN_VY *with the X stick centered* —
+		# the source reaches the intersection check only through the ZP_ACCELX == 0 branch
+		# (chopperPhysicsNoAccel, choplifter.s:5287–5292). R3-M3.
+		if accelx == 0 and vy_h <= MIN_VY_HI:
+			if absi(vel_x_hi()) >= CRASHSPEED_HI:
+				crash()
+				return
+			_settle()
+		# Gentle approach: hover at ground without latching landed.
+	else:
+		# Already grounded: lift off only when upward thrust beats the launch threshold.
+		if vy_h >= LAUNCHTHRESH_HI:
+			airborne = true
+			landed = false
+			landed_at_base = false
+		else:
+			_settle()
+
+func _settle() -> void:
+	pos_y = 0.0
+	vel_y = 0
+	vel_x -= _asr(vel_x, 1)       # ground X decay (source chopperPhysics_Decay: ASR by 1)
+	landed = true
+	airborne = false
+	landed_at_base = over_base
+
+func crash() -> void:
+	if dying:
+		return
+	die()
+
+func die() -> void:
+	# Minimal core; Task 19 adds the explosion/death sequence and sortie accounting on top.
+	if dying:
+		return
+	dying = true
+	chopper_died.emit()
 
 func _check_boarding_nearby_hostages() -> void:
 	for hostage in get_tree().get_nodes_in_group("hostages"):

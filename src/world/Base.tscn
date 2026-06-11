@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://base0000000001"]
+
+[ext_resource type="Script" path="res://src/world/Base.gd" id="1_ba"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pad"]
+size = Vector2(64, 40)
+
+[node name="Base" type="Area2D"]
+collision_layer = 64
+collision_mask = 2
+script = ExtResource("1_ba")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -20)
+shape = SubResource("RectangleShape2D_pad")
