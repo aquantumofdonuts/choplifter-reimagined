@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3 uid="uid://alien000000001"]
+
+[ext_resource type="Script" path="res://src/entities/Alien.gd" id="1_al"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/alien/body.png" id="2_body"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/alien/mid_1.png" id="3_mid"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hb"]
+size = Vector2(20, 10)
+
+[node name="Alien" type="CharacterBody2D"]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_al")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("RectangleShape2D_hb")
+
+[node name="Body" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_body")
+
+[node name="MidSection" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("3_mid")
