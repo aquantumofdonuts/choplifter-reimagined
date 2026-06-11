@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3 uid="uid://hostage0000001"]
+
+[ext_resource type="Script" path="res://src/entities/Hostage.gd" id="1_ho"]
+[ext_resource type="Texture2D" path="res://assets/graphics/mode1/hostage_waving/frame_1.png" id="2_tex"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hb"]
+size = Vector2(9, 11)
+
+[node name="Hostage" type="CharacterBody2D"]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_ho")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 32
+collision_mask = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(0, -5.5)
+shape = SubResource("RectangleShape2D_hb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -5.5)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_tex")
