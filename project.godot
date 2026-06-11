@@ -30,6 +30,8 @@ enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
 window/size/viewport_width=480
 window/size/viewport_height=270
+window/size/window_width_override=1440
+window/size/window_height_override=810
 window/stretch/mode="viewport"
 window/stretch/aspect="keep"
 window/stretch/scale_mode="integer"
@@ -115,10 +117,16 @@ pause={
 
 [physics]
 
-common/physics_ticks_per_second=60
+; SOURCE TICK RATE — the Apple II original was CPU-bound at roughly 15 fps, and every
+; extracted constant is per SOURCE frame. Running them at 60 Hz made the whole game ~4x
+; too fast (v0.1 playability finding). The physics tick IS the source tick: 15 Hz.
+; Evidence: the demo flies 224 source frames to cross the ~4100-unit map; at 15 fps that
+; is ~15 s, matching original footage. Ledgered as Approximation (tunable 15-20).
+common/physics_ticks_per_second=15
 
 [rendering]
 
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0

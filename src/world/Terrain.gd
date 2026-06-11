@@ -7,7 +7,7 @@ class_name Terrain
 const MOUNTAIN_PERIOD: int = 194
 
 @onready var mountains_layer: Node2D = $Mountains
-@onready var ground_sprite: Sprite2D = $Ground
+@onready var ground_rect: ColorRect = $Ground  # flat ground strip below the y=0 line
 
 func compute_mountain_x(scroll_pos: int) -> int:
 	# Source: renderMountains — SCROLLPOS - (SCROLLPOS >> 1) AND #$FE

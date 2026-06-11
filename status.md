@@ -84,8 +84,13 @@
   alien leaves (plan's "alien_crackle_0" name was wrong), `hostage_rescued` spec + OGG generated
   (E5-G5-C6-E6 arpeggio), landing SFX wired at touchdown, `tests/test_sfx_pipeline.py` created
   (pytest green — DoD gate). Pause now silences BOTH loops and restarts them contextually.
-- Next step: **v0.1 Playability Check** (manual, in-editor — see plan "v0.1 Playability Check"
-  checklist), then Phase 13 (Tasks 25–28: Tier A fixes) toward v0.2
+- **v0.1 playability round 1 (maintainer):** "not playable — too fast, nothing visible." Root
+  causes fixed: (1) physics tick was 60 Hz but source constants are per SOURCE frame (~15 fps
+  Apple II loop) → tick now 15 Hz (ledgered Approximation; Tank/Jet fire intervals rescaled);
+  (2) window opened at native 480×270 → 3× override (1440×810); (3) chopper/base/ground had NO
+  sprites wired (plan's editor-built scenes left visual nodes empty) → chopper turn/tilt frames,
+  base building+flagpole, ground strip + line, black sky; (4) chopper now spawns at the base pad.
+- Next step: **v0.1 Playability Check round 2** (manual), then Phase 13 (Tasks 25–28, Tier A)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)

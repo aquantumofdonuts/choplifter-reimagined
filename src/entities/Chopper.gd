@@ -26,6 +26,30 @@ const BULLET_GRAVITY_TABLE: Array[int] = [-2, -2, -1, -1, -1, 0]
 # Source ground reference; altitude 0 sits on the ground line (Y flip applied at render only).
 const GROUND_SRC_Y: float = 0.0
 
+# --- Body sprite frames (extracted Apple II sprites, 4x scale → 0.25 node scale) ---
+# Side view (|turn_state| == 5): tilt frame indexed by the X stick (accelx -5..+5 → 0..10).
+const SIDE_BY_TILT: Array[Texture2D] = [
+	preload("res://assets/graphics/mode1/chopper_side/tilt_m5.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_m4.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_m3.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_m2.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_m1.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_0.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_p1.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_p2.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_p3.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_p4.png"),
+	preload("res://assets/graphics/mode1/chopper_side/tilt_p5.png"),
+]
+# Turning (|turn_state| 0..4): head-on rotation frames.
+const ROTATE_BY_TURN: Array[Texture2D] = [
+	preload("res://assets/graphics/mode1/chopper_headon/headon_0.png"),
+	preload("res://assets/graphics/mode1/chopper_headon/rotate_1.png"),
+	preload("res://assets/graphics/mode1/chopper_headon/rotate_2.png"),
+	preload("res://assets/graphics/mode1/chopper_headon/rotate_3.png"),
+	preload("res://assets/graphics/mode1/chopper_headon/rotate_4.png"),
+]
+
 # --- Landing constants (choplifter.s:4792–4804), in source high-byte units ---
 const MIN_VY_HI: int = -5        # MIN_VY $FBA0 — min downward speed to register ground
 const CRASHSPEED_HI: int = 0x15  # CRASHSPEED $EB01 — |vx_hi| at/above which a touchdown crashes
@@ -55,6 +79,8 @@ var dying: bool = false
 var hostages_aboard: int = 0
 var active_bullets: int = 0
 var fuel: float = 1.0          # Tier C only; ignored in Mode 1
+
+@onready var _body: Sprite2D = $BodySprite
 
 func _ready() -> void:
 	add_to_group("chopper")    # entities/managers resolve the player via this group
@@ -143,6 +169,18 @@ func _update_render_position() -> void:
 	# Only the Y axis is flipped here (source altitude is up-positive; Godot Y is down-positive).
 	position.x = pos_x
 	position.y = GROUND_SRC_Y - pos_y
+	_update_sprite()
+
+func _update_sprite() -> void:
+	var t := absi(turn_state)
+	if t >= 5:
+		# Full side view: tilt frame from the X stick, mirrored when facing left.
+		_body.texture = SIDE_BY_TILT[clampi(accelx + 5, 0, 10)]
+		_body.flip_h = logical_face < 0
+	else:
+		# Facing camera / mid-turn: head-on rotation frames, mirrored for left turns.
+		_body.texture = ROTATE_BY_TURN[t]
+		_body.flip_h = turn_state < 0
 
 func _handle_input() -> void:
 	if GameState.input_locked or dying:

@@ -27,6 +27,10 @@ func _ready() -> void:
 	# Top-left anchoring so camera.position == viewport top-left in source-unit world space,
 	# keeping the scroll-lead formulas (source-unit offsets) correct as written.
 	camera.anchor_mode = Camera2D.ANCHOR_MODE_FIXED_TOP_LEFT
+	# Sortie start: the chopper spawns grounded on the base pad (v0.1 checklist; the source
+	# spawns each sortie at the base). Tests that need other positions override after add_child.
+	chopper.pos_x = float(GameState.SRC_BASE_X)
+	chopper.pos_y = 0.0
 	chopper.chopper_died.connect(_on_chopper_died)
 	victory_achieved.connect(_start_victory)
 	hostage_manager.setup(self, chopper)

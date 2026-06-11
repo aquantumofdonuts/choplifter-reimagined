@@ -83,8 +83,14 @@ Display/Window/Stretch/Aspect = keep
 Display/Window/Stretch/Scale Mode = integer
 Rendering/Textures/Canvas Textures/Default Texture Filter = 0  (Nearest)
 Application/Run/Main Scene = res://src/scenes/Boot.tscn
-Physics/Common/Physics Ticks Per Second = 60
+Physics/Common/Physics Ticks Per Second = 15   (amended at v0.1 — see below)
 ```
+
+> **Amended at the v0.1 playability check:** the physics tick is the SOURCE tick. The Apple II
+> original was CPU-bound at ~15 fps (no VBL), and every extracted constant is per source frame —
+> at 60 Hz the game ran ~4× too fast. Evidence: the attract demo flies 224 source frames to cross
+> the ~4100-unit map ≈ 15 s at 15 fps, matching footage. Ledgered as Approximation; rendering
+> still runs at the display rate.
 
 > **Stretch mode is `viewport` + `integer` (DESIGN.md §Appendix, commit 55633ee — authoritative):**
 > pixel-perfect on high-DPI mobile screens; `canvas_items` would blur sub-pixel edges. Consequence:
@@ -94,8 +100,9 @@ Physics/Common/Physics Ticks Per Second = 60
 > switch, keyed on destination scene path. See DESIGN.md §11.3.
 
 > **Physics determinism:** All source-faithful entity logic MUST live in `_physics_process`, not
-> `_process`. The locked 60Hz tick is the emulation substrate — Mode 1 fidelity is void otherwise.
-> Every entity added in later phases must follow this rule.
+> `_process`. The locked physics tick (15 Hz = the source tick, amended at v0.1) is the emulation
+> substrate — Mode 1 fidelity is void otherwise. Every entity added in later phases must follow
+> this rule.
 
 **Step 3: Add Godot entries to .gitignore**
 

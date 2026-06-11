@@ -2,7 +2,7 @@ extends CharacterBody2D
 class_name Jet
 
 const SPEED: float = 2.0            # source units/frame
-const FIRE_INTERVAL: int = 180      # frames between missiles (60Hz)
+const FIRE_INTERVAL: int = 45       # source ticks between missiles (~3 s at the 15 Hz source tick)
 const BOMB_PROXIMITY: float = 150.0  # source units
 
 @export var missile_scene: PackedScene = preload("res://src/entities/Missile.tscn")

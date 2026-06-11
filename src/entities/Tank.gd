@@ -3,7 +3,7 @@ class_name Tank
 
 const PATROL_SPEED: float = 0.5         # source units/frame
 const PATROL_HALF_WIDTH: float = 320.0  # patrol ±320 source units around spawn
-const FIRE_INTERVAL: int = 120          # frames between shots (60Hz)
+const FIRE_INTERVAL: int = 30           # source ticks between shots (~2 s at the 15 Hz source tick)
 
 var depth_plane: int = 1   # z_index 1-8
 var cannon_angle: float = 0.0

@@ -29,3 +29,4 @@
 | Camera scroll clamps (`$02B0`–`$1208`) | Exact | choplifter.s:4768–4775 | Task 11 |
 | Source RNG (rol/eor/ror through carry, V-flag seed bump) | Exact algorithm; seed/carry init approximated | choplifter.s:6069–6083 | Task 4 — source seed is the uninitialized accumulator; a bit-exact stream is unattainable by design |
 | 16-house single field | Enhanced (Mode 2+) | — | Reimagined variant only; NOT Mode 1 — Task 35b |
+| Source tick rate (15 Hz physics tick) | Approximation (documented) | choplifter.s:316–335 (demo: 224 frames ≈ one map crossing) | v0.1 playability fix — the Apple II loop was CPU-bound (~15 fps, no VBL); all extracted constants are per SOURCE frame, so the Godot physics tick IS the source tick. At 60 Hz the game ran ~4× too fast. 224-frame demo leg ≈ 15 s at 15 fps, matching original footage. Tunable 15–20 if feel-testing disagrees |
