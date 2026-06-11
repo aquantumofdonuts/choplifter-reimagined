@@ -16,15 +16,19 @@
 - Soundfont gitignored — restore with `cp /usr/share/sounds/sf2/FluidR3_GM.sf2 assets/audio/soundfonts/chiptune.sf2`
 - Do NOT re-run generation (wastes paid Scenario credits). Integration of assets into scenes is still pending at plan positions.
 
-### Godot project — IN PROGRESS (Phase 0 complete)
+### Godot project — IN PROGRESS (Phases 0–1 complete)
 - **Authoritative plan:** `docs/plans/2026-06-07-implementation-plan.md` (round-3 review fixes already merged in, 92c0921; review docs archived under `docs/plans/archive/`)
 - **Plus:** `docs/plans/2026-06-11-meta-game-depth-design.md` (Tasks 37/37b amendments)
 - **Done:** Tasks 1, 2, 3, 3b, 3c, 3d — project bootstrap (Godot 4.6.3, GdUnit4 v6.1.3 verified
   headless via `GODOT_BIN=$(which godot) ./addons/gdUnit4/runtest.sh -a tests/`), physics layer
   names, Fidelity Ledger (`docs/FIDELITY_LEDGER.md`)
+- **Done (Phase 1):** Tasks 4–7 — all four autoloads registered (GameState w/ source RNG +
+  hostage universe, Settings, AudioManager w/ SFX+Music buses, SceneTransition w/ runtime
+  content_scale_mode switch). 15 GdUnit4 tests green.
 - Placeholder `src/scenes/Boot.tscn` exists so headless runs stay clean — Task 21 replaces it
-- 3c's `test_coordinate_model.gd` deferred into Task 4 (it asserts GameState constants)
-- Next step: Phase 1 (Task 4: GameState autoload) — follow plan task-by-task, executing-plans skill
+- **Gotcha found:** GdUnit4 hooks are `before_test`/`after_test`, NOT `before_each`/`after_each`
+  (plan's test snippets use the wrong names — fix when transcribing future tasks' tests)
+- Next step: Phase 2 (Task 8: chopper physics — source-faithful integration, CF1)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
