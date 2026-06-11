@@ -16,7 +16,7 @@
 - Soundfont gitignored — restore with `cp /usr/share/sounds/sf2/FluidR3_GM.sf2 assets/audio/soundfonts/chiptune.sf2`
 - Do NOT re-run generation (wastes paid Scenario credits). Integration of assets into scenes is still pending at plan positions.
 
-### Godot project — IN PROGRESS (Phases 0–6 complete)
+### Godot project — IN PROGRESS (Phases 0–9 complete)
 - **Authoritative plan:** `docs/plans/2026-06-07-implementation-plan.md` (round-3 review fixes already merged in, 92c0921; review docs archived under `docs/plans/archive/`)
 - **Plus:** `docs/plans/2026-06-11-meta-game-depth-design.md` (Tasks 37/37b amendments)
 - **Done:** Tasks 1, 2, 3, 3b, 3c, 3d — project bootstrap (Godot 4.6.3, GdUnit4 v6.1.3 verified
@@ -42,7 +42,13 @@
   radius, 8–9 boarding band, run-backs, unload-credits-rescues, CHOP_LOADED level gate, R3-C3
   serialize/restore) and bullets (source velocity table; `gravity` renamed `gravity_step` —
   Area2D native member collision; enemy hits duck-typed via take_hit()). 45 GdUnit4 tests green.
-- Next step: Phase 7–9 (Tasks 16–18: Tank, Jet, Alien entities)
+- **Done (Phases 7–9):** Tasks 16–18 — Tank (+Shell, PosV page-0 spawn bug replicated), Jet
+  (+Missile/Bomb, R3-H6a bomb latch), Alien (chase ±5/±1, Mode-1 ==3 fire gate), SpawnManager
+  ($2F cadence, single-RNG-byte type pick per R3-H2). 55 GdUnit4 tests green. Jet/alien spawn
+  *placement* is a documented approximation (plan only specifies gates/cadence).
+- `hostage_rescued` SFX referenced by HostageManager has no .ogg (warns harmlessly) — map to an
+  existing sound or synthesize in Task 24
+- Next step: Phase 10 (Task 19: death/sortie/win-loss; Task 19b: integration + golden-trace gates)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
