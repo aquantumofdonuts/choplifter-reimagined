@@ -11,7 +11,7 @@
 ### Asset pipeline — COMPLETE (all committed)
 - **Mode 1 sprites:** 128 PNGs in `assets/graphics/mode1/` (extracted from Apple II CHOPGFX, e71e257)
 - **Mode 2 sprites:** 161/161 in `assets/graphics/mode2/` (Scenario REST API, 880fc8d); `_flagged.json` empty
-- **SFX:** 21 OGGs in `assets/audio/sfx/`
+- **SFX:** 22 OGGs in `assets/audio/sfx/` (21 pre-generated + hostage_rescued added in Task 24)
 - **Music:** 18 OGGs in `assets/audio/music/` — 5 biomes × 3 layers + 3 stings (fbf3bdc)
 - Soundfont gitignored — restore with `cp /usr/share/sounds/sf2/FluidR3_GM.sf2 assets/audio/soundfonts/chiptune.sf2`
 - Do NOT re-run generation (wastes paid Scenario credits). Integration of assets into scenes is still pending at plan positions.
@@ -46,8 +46,6 @@
   (+Missile/Bomb, R3-H6a bomb latch), Alien (chase ±5/±1, Mode-1 ==3 fire gate), SpawnManager
   ($2F cadence, single-RNG-byte type pick per R3-H2). 55 GdUnit4 tests green. Jet/alien spawn
   *placement* is a documented approximation (plan only specifies gates/cadence).
-- `hostage_rescued` SFX referenced by HostageManager has no .ogg (warns harmlessly) — map to an
-  existing sound or synthesize in Task 24
 - **Done (Phase 10, Task 19):** death/sortie/win-loss — Chopper.die() full sequence (GameState
   accounting + explosion SFX + 1.5s before `chopper_died`; `chopper_landed` emitted on _settle
   transition), World end-condition routing (loss → MainMenu; survivable death → serialize field
@@ -81,7 +79,13 @@
   wins over path in Godot 4.6); code review hardened `Settings.load_settings()` with type-guarded,
   range-clamped reads (user-editable settings.cfg with `visual_mode=99` crashed MainMenu's
   `names[visual_mode - 1]`; a string value crashed the autoload at boot). 64 tests still green.
-- Next step: Task 24 (wire SFX to game events; Task 23's SFX assets were pre-generated in e71e257)
+- **Done (Task 24 + Task 23 pytest gap):** SFX wiring — engine_loop lifecycle (spawn/die/pause/
+  quit/victory/loss), alien_crackle_mid shared-voice loop stopped via tree_exiting when the last
+  alien leaves (plan's "alien_crackle_0" name was wrong), `hostage_rescued` spec + OGG generated
+  (E5-G5-C6-E6 arpeggio), landing SFX wired at touchdown, `tests/test_sfx_pipeline.py` created
+  (pytest green — DoD gate). Pause now silences BOTH loops and restarts them contextually.
+- Next step: **v0.1 Playability Check** (manual, in-editor — see plan "v0.1 Playability Check"
+  checklist), then Phase 13 (Tasks 25–28: Tier A fixes) toward v0.2
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)

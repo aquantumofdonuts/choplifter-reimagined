@@ -24,8 +24,9 @@ func show_pause() -> void:
 	visible = true
 	get_tree().paused = true
 	# AudioManager is PROCESS_MODE_ALWAYS, so pausing the tree alone would leave the
-	# engine loop droning over the pause menu — stop it explicitly (Task 24).
+	# sustained loops droning over the pause menu — stop them explicitly (Task 24).
 	AudioManager.stop_loop("engine_loop")
+	AudioManager.stop_loop("alien_crackle_mid")
 	resume_button.grab_focus()
 
 func hide_pause() -> void:
@@ -37,6 +38,11 @@ func hide_pause() -> void:
 	var chopper := get_tree().get_first_node_in_group("chopper") as Chopper
 	if chopper and not chopper.dying:
 		AudioManager.start_loop("engine_loop")
+	# Crackle resumes only if an alien is still alive (quit-to-menu re-stops loops after this).
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Alien:
+			AudioManager.start_loop("alien_crackle_mid")
+			break
 
 func _on_resume_pressed() -> void:
 	hide_pause()
@@ -45,8 +51,9 @@ func _on_quit_to_menu_pressed() -> void:
 	if GameState.input_locked:
 		return
 	hide_pause()
-	# hide_pause() just restarted the engine loop (the chopper is alive while quitting);
-	# kill it again so nothing is left playing on MainMenu (Task 24).
+	# hide_pause() just restarted the loops (the chopper/aliens are alive while quitting);
+	# kill them again so nothing is left playing on MainMenu (Task 24).
 	AudioManager.stop_loop("engine_loop")
+	AudioManager.stop_loop("alien_crackle_mid")
 	GameState.input_locked = false
 	SceneTransition.transition_to("res://src/scenes/MainMenu.tscn")
