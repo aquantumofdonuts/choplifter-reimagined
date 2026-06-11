@@ -90,7 +90,12 @@
   (2) window opened at native 480×270 → 3× override (1440×810); (3) chopper/base/ground had NO
   sprites wired (plan's editor-built scenes left visual nodes empty) → chopper turn/tilt frames,
   base building+flagpole, ground strip + line, black sky; (4) chopper now spawns at the base pad.
-- Next step: **v0.1 Playability Check round 2** (manual), then Phase 13 (Tasks 25–28, Tier A)
+- **v0.1 round 2:** sprites were stored 4× and decimated to noise by the 0.25-node-scale ×
+  1.714-camera-zoom path → all mode1 art losslessly downscaled to 1× source res (scales removed,
+  HUD icons 1:1, hitbox 34×12 to match the 35×13 sprite); chopper ceiling implemented from source
+  (BOUNDS_TOP $70 − $07 ground offset = 105, VY zeroed — ledgered Exact). 16-aboard cap confirmed
+  source-faithful to the maintainer.
+- Next step: **v0.1 Playability Check round 3** (manual), then Phase 13 (Tasks 25–28, Tier A)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
