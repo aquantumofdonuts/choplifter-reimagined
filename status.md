@@ -116,7 +116,12 @@
   blocked the centered-stick touchdown gate, the real cause of 'press down again to board');
   **aboard cap 16 → 8 (GameState.MAX_ABOARD)** — DELIBERATE maintainer deviation from source
   cmp #$10, ledgered, one constant to revert.
-- Next step: **v0.1 Playability Check round 6** (manual), then Phase 13 (Tasks 25–28, Tier A)
+- **v0.1 round 6:** the landing bug was finally REPRODUCED (new LandingProbe dev tool: scripted
+  real-Input flight + per-tick state log) — the round-3 hover floor zeroed vel_y, so a sideways
+  arrival (gate blocked) wiped descent velocity and gravity (−2) could never re-reach MIN_VY (−5):
+  hover forever → 'press down again'. Source clamps POSITION ONLY; vel_y now preserved. Probe
+  confirms touchdown on the release tick + hostages board with no extra input. Regression-tested.
+- Next step: **v0.1 Playability Check round 7** (manual), then Phase 13 (Tasks 25–28, Tier A)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
