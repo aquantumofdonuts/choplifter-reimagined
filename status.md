@@ -102,7 +102,16 @@
   against the $a000 master pointer tables — was already correct. Logo decodes to clean violet
   CHOPLIFTER letters. Re-extraction is idempotent: `python3 src/tools/extract_sprites.py --gfx
   docs/blondie-ChoplifterReverse/CHOPGFX --gfxhi .../CHOPGFXHI --out assets/graphics/mode1 --scale 1`.
-- Next step: **v0.1 Playability Check round 4** (manual), then Phase 13 (Tasks 25–28, Tier A)
+- **v0.1 round 4:** facing model implemented from source (face_mode/CHOP_FACE + camera-mode
+  stick lean via facingTurnTable; Q/E/X = the original's deliberate button+stick turns);
+  hostages re-derive run-vs-wave per tick (updateHostagesPlayerAloft) — no more latched
+  chase-clumps; proportional analog collective (action-strength → ACCELY 0-15, hover possible
+  on gamepad); base building moved off the pad; ScreenshotProbe dev tool added (agent can
+  capture real rendered frames: SHOT_SCENE/SHOT_FRAMES/SHOT_PATH env + godot ScreenshotProbe.tscn).
+- Known feel notes: keyboard cannot hover (neutral = source gravity sink −2; analog stick can);
+  buildings/houses keep the mottled NTSC artifact texture (palette-0 white/violet/green — matches
+  the Apple II composite look); mountains are sparse low ridges per renderMountains.
+- Next step: **v0.1 Playability Check round 5** (manual), then Phase 13 (Tasks 25–28, Tier A)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
