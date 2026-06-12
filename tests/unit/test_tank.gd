@@ -18,6 +18,16 @@ func test_shell_has_gravity():
 	assert_int(shell.vel_y).is_less(initial_vy)  # Falling
 	shell.queue_free()
 
+func test_shell_bursts_on_ground():
+	# Falling shells stop at the dirt — they must not pass below the ground line.
+	var shell: Shell = preload("res://src/entities/Shell.tscn").instantiate()
+	add_child(shell)
+	shell.position = Vector2(1000, -1)
+	shell.vel_y = -1                  # already falling
+	shell._physics_process(1.0 / 15.0)
+	assert_bool(shell.is_queued_for_deletion()).is_true()
+	shell.queue_free()
+
 func test_mode1_spawn_bug_replicated():
 	# spawnTankPosV: ENTITY_X_H always 0 when player heading right → X pinned to page 0
 	var spawn_manager: SpawnManager = preload("res://src/world/SpawnManager.tscn").instantiate()

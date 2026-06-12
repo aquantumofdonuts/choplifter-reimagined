@@ -11,7 +11,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	vel_y += 1
 	position.y += float(vel_y)   # Godot Y down-positive → falls
-	if position.y > 200:
+	if position.y >= 0.0:        # bombs burst on the dirt (v0.1 round 3)
 		queue_free()
 
 func _on_area_entered(area: Area2D) -> void:

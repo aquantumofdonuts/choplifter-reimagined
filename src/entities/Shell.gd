@@ -25,6 +25,11 @@ func _physics_process(_delta: float) -> void:
 	vel_y -= 1               # gravity
 	position.x += vel_x
 	position.y -= float(vel_y)   # +vel_y rises, -vel_y falls (Godot Y down-positive)
+	# Shells burst on the dirt — they never pass below the ground line (v0.1 round 3).
+	# vel_y < 0 guard protects the launch frame (tank shells start AT ground level, rising).
+	if position.y >= 0.0 and vel_y < 0:
+		queue_free()
+		return
 	if position.y > 200 or position.x < GameState.SRC_BOUNDS_LEFT - 32 \
 	   or position.x > GameState.SRC_BOUNDS_RIGHT + 32:
 		queue_free()

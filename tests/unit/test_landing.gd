@@ -37,6 +37,19 @@ func test_launch_requires_threshold():
 	chopper._check_ground()
 	assert_bool(chopper.airborne).is_true()
 
+func test_gentle_hover_floors_at_ground_line():
+	# Slow approach (vy above MIN_VY): no touchdown latch, but the chopper must hover AT
+	# the ground line, never sink below it (source "Keep chopper out of ground",
+	# choplifter.s:5299-5301; v0.1 round 3: it parked at -MAX_SINK and 'landed upward').
+	chopper.airborne = true
+	chopper.pos_y = -3.0
+	chopper.vel_y = -(2 << 8)     # gentle sink, NOT enough to register touchdown
+	chopper.vel_x = 0
+	chopper._check_ground()
+	assert_bool(chopper.landed).is_false()
+	assert_float(chopper.pos_y).is_equal(0.0)
+	assert_int(chopper.vel_y).is_equal(0)
+
 func test_base_landing_sets_landed_at_base():
 	chopper.airborne = true
 	chopper.over_base = true       # set by Base.area_entered
