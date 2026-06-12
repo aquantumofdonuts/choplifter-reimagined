@@ -47,7 +47,6 @@ func test_full_rescue_increments_total_rescues() -> void:
 	world.chopper.pos_y = 0.0
 	world.chopper.vel_x = 0
 	world.chopper.vel_y = 0
-	world.chopper.over_base = false   # field landing, not the base
 
 	# Pump frames until a hostage spawns from the house, runs over, and boards.
 	var boarded := false
@@ -62,11 +61,10 @@ func test_full_rescue_increments_total_rescues() -> void:
 	assert_int(gs.hostages_in_houses[0]).is_equal(15)
 
 	# 2) Fly to the base and land; the HostageManager must unload via a base-runner.
-	world.chopper.pos_x = float(gs.SRC_BASE_X)
+	world.chopper.pos_x = float(gs.SRC_BASE_X + 0x20)   # inside the pad window ($0D..$3F)
 	world.chopper.pos_y = 0.0
 	world.chopper.vel_x = 0
 	world.chopper.vel_y = 0
-	world.chopper.over_base = true
 
 	var delivered := false
 	for _i in range(1200):

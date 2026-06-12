@@ -17,9 +17,9 @@ position = Vector2(0, -20)
 shape = SubResource("RectangleShape2D_pad")
 
 [node name="Building" type="Sprite2D" parent="."]
-position = Vector2(60, -6)
+position = Vector2(-30, -6)
 texture = ExtResource("2_bld")
 
 [node name="Flagpole" type="Sprite2D" parent="."]
-position = Vector2(-40, -8)
+position = Vector2(-70, -8)
 texture = ExtResource("3_flag")

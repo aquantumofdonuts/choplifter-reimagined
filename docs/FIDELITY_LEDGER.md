@@ -12,7 +12,7 @@
 | Chopper Y integration (ease-to-target) | Exact | choplifter.s:5207–5234 | Task 8 |
 | Chopper X integration (friction + accel table + clamp) | Exact | choplifter.s:5160–5260 | Task 8 |
 | Proportional vertical input (ACCELY index 0–15) | Exact (digital on keyboard) | choplifter.s:5630–5658 | Task 10 — keyboard `descend` = full deflection (index 0); analog sticks map proportionally |
-| Landing / crash / launch thresholds (touchdown gated on centered X stick) | Exact | choplifter.s:4792–4804, 5287–5331 | Task 13 |
+| Landing rule (ground contact + \|VX\| < CRASHSPEED + stick-X centered = LANDED; base pad = X window BASE_X+$0D..$3F; launch at VY ≥ +1; MIN_VY drives ONLY the grounding/squish cycle) | Exact (structure ported 1:1) | choplifter.s:5286–5340 (chopperPhysicsGroundCheck), 5747–5905 (handleGround) | v0.1 round 7 — REPLACES the earlier "MIN_VY required to register touchdown" model, which was a misreading (it produced the 'press down again to land' bug). Grounded position only integrates on launch (no taxiing, structurally). bounceThrust + settle-goo micro-shuffle omitted — Approximation (cosmetic feel polish) |
 | Hostage topology (4 houses / 64 reservoir / 16 active) | Exact | choplifter.s:3742–3815 | Task 14 |
 | House choice (under-chopper preference + random-start ring scan) | Exact | choplifter.s:3756–3795 | Task 14 |
 | Aboard cap + "chopper full" run-back | **Deviation (maintainer decision)** | choplifter.s:3509–3556 (`cmp #$10` = 16) | Task 14 / v0.1 round 5 — source cap is 16; reduced to 8 (`GameState.MAX_ABOARD`) after playtesting ("seems like too many"). Run-back mechanic itself unchanged. Restore the constant to 16 for source-exact behavior |

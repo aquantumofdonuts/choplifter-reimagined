@@ -16,6 +16,7 @@ func test_thrust_trace_through_physics_process() -> void:
 	add_child(chopper)
 	chopper.pos_y = 20.0    # airborne, but low enough that 5 thrust frames (+24 units) stay
 	                        # under the source ceiling clamp at 105, which zeroes VY
+	chopper.airborne = true
 	chopper.vel_y = 0
 
 	Input.action_press("thrust_up")   # simulate holding thrust through the real input path
@@ -31,6 +32,7 @@ func test_gravity_trace_through_physics_process() -> void:
 	var chopper := preload("res://src/entities/Chopper.tscn").instantiate()
 	add_child(chopper)
 	chopper.pos_y = 100.0
+	chopper.airborne = true
 	chopper.vel_y = 0
 
 	var trace := []   # no thrust held → gravity ease-down

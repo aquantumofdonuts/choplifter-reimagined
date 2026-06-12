@@ -1,5 +1,9 @@
 extends GdUnitTestSuite
 
+# The source landing rule (handleGround, choplifter.s:5747-5905): touching the ground +
+# |VX| under CRASHSPEED + X stick centered = LANDED. No minimum descent velocity.
+# landed_at_base = pad X window BASE_X+$0D..$3F.
+
 var chopper: Chopper
 
 func before_test():
@@ -10,67 +14,66 @@ func before_test():
 func after_test():
 	chopper.queue_free()
 
-func test_safe_landing_sets_landed():
+func test_ground_contact_with_centered_stick_lands():
 	chopper.airborne = true
-	chopper.over_base = false
-	chopper.pos_y = -1.0          # just below ground line
-	chopper.vel_y = -(6 << 8)       # descending at vy_hi = -6 (past MIN_VY = -5)
-	chopper.vel_x = 0             # horizontal speed safe
-	chopper._check_ground()
+	chopper.pos_y = -1.0          # touching the ground line
+	chopper.vel_y = -(2 << 8)     # ANY descent speed — no MIN_VY gate in the source
+	chopper.vel_x = 0
+	chopper.accelx = 0
+	chopper._handle_ground()
 	assert_bool(chopper.landed).is_true()
+	assert_bool(chopper.airborne).is_false()
 	assert_bool(chopper.dying).is_false()
-	assert_int(chopper.vel_y).is_equal(0)
 
-func test_crash_when_horizontal_speed_at_max():
+func test_angled_contact_does_not_land_until_stick_centers():
+	# handleGroundZeroVX: stick deflected = "touched down but not landed" — the moment the
+	# stick centers, landed latches. (The v0.1 'press down again' saga ended here.)
 	chopper.airborne = true
 	chopper.pos_y = -1.0
-	chopper.vel_y = -(6 << 8)
+	chopper.vel_x = 0
+	chopper.accelx = -5
+	chopper._handle_ground()
+	assert_bool(chopper.airborne).is_false()
+	assert_bool(chopper.landed).is_false()
+	chopper.accelx = 0
+	chopper._handle_ground()
+	assert_bool(chopper.landed).is_true()
+
+func test_crash_on_contact_at_excess_horizontal_speed():
+	chopper.airborne = true
+	chopper.pos_y = -1.0
 	chopper.vel_x = 0x15 << 8     # |vx_hi| == CRASHSPEED magnitude
-	chopper._check_ground()
+	chopper._handle_ground()
 	assert_bool(chopper.dying).is_true()
 
 func test_launch_requires_threshold():
 	chopper.airborne = false
 	chopper.landed = true
 	chopper.pos_y = 0.0
-	chopper.vel_y = 1 << 8        # vy_hi = +1 == LAUNCHTHRESH
-	chopper._check_ground()
+	chopper.vel_y = 1 << 8        # vy_hi = +1 == LAUNCHTHRESH → position integrates upward
+	chopper._grounded_physics()
+	chopper._handle_ground()
 	assert_bool(chopper.airborne).is_true()
 
-func test_gentle_hover_floors_at_ground_line():
-	# Slow approach (vy above MIN_VY): no touchdown latch, but the chopper must hover AT
-	# the ground line, never sink below it (source "Keep chopper out of ground",
-	# choplifter.s:5299-5301; v0.1 round 3: it parked at -MAX_SINK and 'landed upward').
-	chopper.airborne = true
-	chopper.pos_y = -3.0
-	chopper.vel_y = -(2 << 8)     # gentle sink, NOT enough to register touchdown
-	chopper.vel_x = 0
-	chopper._check_ground()
-	assert_bool(chopper.landed).is_false()
+func test_no_launch_below_threshold():
+	chopper.airborne = false
+	chopper.landed = true
+	chopper.pos_y = 0.0
+	chopper.vel_y = 0
+	chopper.accelx = 0
+	chopper._grounded_physics()
+	chopper._handle_ground()
+	assert_bool(chopper.airborne).is_false()
 	assert_float(chopper.pos_y).is_equal(0.0)
-	# VY is PRESERVED while floored (source clamps position only) — zeroing it here made
-	# sideways approaches unlandable once the drift wiped the descent velocity (round 6 fix).
-	assert_int(chopper.vel_y).is_equal(-(2 << 8))
 
-func test_sideways_approach_lands_after_release():
-	# Round 6 regression gate: arrive at the ground with sideways drift (gate blocked),
-	# then center the stick — the preserved descent velocity must still register touchdown.
+func test_base_pad_is_the_source_x_window():
 	chopper.airborne = true
 	chopper.pos_y = -1.0
-	chopper.vel_y = -(10 << 8)
-	chopper.accelx = -5            # drifting: touchdown gate blocked this tick
-	chopper._check_ground()
-	assert_bool(chopper.landed).is_false()
-	chopper.accelx = 0             # stick centered next tick; VY survived the floor
-	chopper.pos_y = -0.5
-	chopper._check_ground()
-	assert_bool(chopper.landed).is_true()
-
-func test_base_landing_sets_landed_at_base():
-	chopper.airborne = true
-	chopper.over_base = true       # set by Base.area_entered
-	chopper.pos_y = -1.0
-	chopper.vel_y = -(6 << 8)
 	chopper.vel_x = 0
-	chopper._check_ground()
+	chopper.accelx = 0
+	chopper.pos_x = float(GameState.SRC_BASE_X + 0x20)   # inside $0D..$3F
+	chopper._handle_ground()
 	assert_bool(chopper.landed_at_base).is_true()
+	chopper.pos_x = float(GameState.SRC_BASE_X)          # AT the label = outside the window
+	chopper._handle_ground()
+	assert_bool(chopper.landed_at_base).is_false()

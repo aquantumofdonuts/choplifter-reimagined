@@ -75,7 +75,6 @@ var turn_state: int = 0        # -5 (left side) … 0 (head-on) … +5 (right si
 var face_mode: int = 0         # CHOP_FACE: commanded facing — -1 left, 0 camera, +1 right.
                                # Spawns camera-facing like the source sortie start.
 var logical_face: int = 1      # 1 = right, -1 = left (flips instantly on input)
-var over_base: bool = false    # set true while the chopper hitbox overlaps the Base Area2D
 var airborne: bool = false     # set by ground check (Task 13)
 var landed: bool = false       # set by ground check (Task 13)
 var landed_at_base: bool = false
@@ -154,9 +153,15 @@ func _physics_process(_delta: float) -> void:
 	_handle_input()          # Task 10: sets accely_index, accelx, target_turn_state, fires
 	_advance_turn_state()    # Task 9: animates turn_state toward target_turn_state
 	integrate_acceleration()
-	integrate_velocity()
+	# Direct port of chopperPhysics ($7434): airborne integrates velocity; grounded runs the
+	# ground sub-physics, which only integrates on a detected LAUNCH — a grounded chopper
+	# cannot slide around, structurally, no input suppression needed.
+	if airborne:
+		integrate_velocity()
+	else:
+		_grounded_physics()
 	_clamp_to_world_bounds()
-	_check_ground()                          # implemented in Task 13 (source thresholds)
+	_handle_ground()                         # port of handleGround ($770d)
 	_update_render_position()
 	if landed and not dying:
 		_check_boarding_nearby_hostages()
@@ -287,54 +292,57 @@ func can_fire() -> bool:
 func get_bullet_gravity() -> int:
 	return BULLET_GRAVITY_TABLE[abs(turn_state)]
 
-func _check_ground() -> void:
+# --- Grounded sub-physics: direct port of chopperPhysicsGroundCheck (choplifter.s:5286-5340).
+# Runs INSTEAD of integrate_velocity while on the ground; position only advances when a
+# launch (VY ≥ LAUNCHTHRESH) is detected. bounceThrust and the settle-goo micro-shuffle are
+# omitted (cosmetic feel polish — ledgered approximation).
+func _grounded_physics() -> void:
+	if grounding:
+		grounding = false             # alternation gives the renderer a squish frame
+		pos_y += 1.0                  # "Keep chopper out of ground" (+1, choplifter.s:5298-5301)
+		vel_y = -_asr(vel_y, 3)       # deathBounceCancel: invert a fraction of VY (bounce damp)
+		vel_x -= _asr(vel_x, 1)       # chopperPhysics_Decay: ground friction, halve VX
+	elif accelx == 0:
+		if vel_y < 0:
+			if vel_y <= -0x0460:      # MIN_VY $FBA0: hard contact → squish cycle
+				grounding = true
+				pos_y -= 1.0          # visible settle dip (choplifter.s:5322-5325)
+				return                # source rts — no launch check this tick
+			vel_y = -_asr(vel_y, 3)   # gentle sink: small bounce + friction
+			vel_x -= _asr(vel_x, 1)
+		else:
+			vel_x -= _asr(vel_x, 1)
+	elif (accelx < 0) != (vel_x < 0):
+		vel_x -= _asr(vel_x, 1)       # stick opposes velocity → decay only
+	# Launch check (chopperPhysics_LaunchCheck): enough upward velocity actually moves us.
+	if vel_y >= (LAUNCHTHRESH_HI << 8):
+		integrate_velocity()
+
+# --- Landed/airborne/base/crash outcomes: direct port of handleGround (choplifter.s:5747-5905).
+# THE landing rule of the original: touching the ground + |VX| under CRASHSPEED + X stick
+# centered = LANDED. No minimum descent velocity. (Our earlier MIN_VY touchdown gate was a
+# misreading of the source — MIN_VY only drives the squish above.)
+func _handle_ground() -> void:
 	if pos_y > 0.0:
 		airborne = true
 		landed = false
 		landed_at_base = false
 		return
-	# At or below the ground line.
-	pos_y = max(pos_y, float(-MAX_SINK))
-	var vy_h := vel_y_hi()
-	if airborne:
-		# Touchdown only registers when descending at least MIN_VY *with the X stick centered* —
-		# the source reaches the intersection check only through the ZP_ACCELX == 0 branch
-		# (chopperPhysicsNoAccel, choplifter.s:5287–5292). R3-M3.
-		if accelx == 0 and vy_h <= MIN_VY_HI:
-			if absi(vel_x_hi()) >= CRASHSPEED_HI:
-				crash()
-				return
-			_settle()
-		else:
-			# Hover AT the ground line without latching landed. The source clamps POSITION
-			# ONLY ("Keep chopper out of ground", choplifter.s:5299–5301) — VY keeps its
-			# value. Zeroing VY here (the round-3 version) broke sideways landings: arriving
-			# with drift blocked the centered-stick gate, the wipe killed the descent
-			# velocity, and gravity's −2 could never re-reach MIN_VY −5 — the chopper then
-			# hovered forever unless the player pressed down AGAIN (v0.1 rounds 4-5 bug).
-			# With VY preserved, centering the stick within the decay window still lands.
-			pos_y = maxf(pos_y, 0.0)
-	else:
-		# Already grounded: lift off only when upward thrust beats the launch threshold.
-		if vy_h >= LAUNCHTHRESH_HI:
-			airborne = true
-			landed = false
-			landed_at_base = false
-		else:
-			_settle()
-
-func _settle() -> void:
-	pos_y = 0.0
-	vel_y = 0
-	vel_x -= _asr(vel_x, 1)       # ground X decay (source chopperPhysics_Decay: ASR by 1)
-	if not landed and airborne:
-		# Landed TRANSITION only (airborne → ground). The spawn frame also reaches _settle()
-		# (grounded, not yet landed) but with airborne == false — no touchdown sound there.
-		chopper_landed.emit()
-		AudioManager.play_sfx("landing")  # Task 24 — v0.1 checklist requires an audible touchdown
-	landed = true
+	pos_y = maxf(pos_y, 0.0)          # handleGround_Clamp (bottom table approximated at 0)
 	airborne = false
-	landed_at_base = over_base
+	# Base pad: an X window right of BASE_X ($0D-$3F, choplifter.s:5795-5808) — the green pad.
+	var rel := int(pos_x) - GameState.SRC_BASE_X
+	landed_at_base = rel >= 0x0D and rel < 0x40
+	# Crash on ground contact with excess horizontal speed (handleGroundMag vs CRASHSPEED).
+	if absi(vel_x_hi()) >= CRASHSPEED_HI:
+		crash()
+		return
+	# handleGroundZeroVX: stick deflected = "touched down but not landed"; centered = landed.
+	var now_landed := accelx == 0
+	if now_landed and not landed:
+		chopper_landed.emit()
+		AudioManager.play_sfx("landing")  # audible touchdown (v0.1 checklist)
+	landed = now_landed
 
 func crash() -> void:
 	if dying:
