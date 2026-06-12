@@ -277,11 +277,15 @@ def load_memory(chopgfx_path: Path, chopgfxhi_path: Path) -> dict[int, int]:
 # ---------------------------------------------------------------------------
 
 def bytes_per_row(width_px: int) -> int:
-    """Apple II HGR stores 7 pixels per byte; compute how many bytes a row needs."""
-    return math.ceil(width_px / 7)
+    """Choplifter sprite bitmaps store 8 pixels per byte (applyClipping: width+7 >> 3).
+
+    NOTE: this is the SOURCE IMAGE format, not the Apple II screen format. The
+    renderer converts 8-px source bytes to 7-px HGR screen bytes at blit time
+    (calcRowBitByte and friends, choplifter.s:1386+)."""
+    return math.ceil(width_px / 8)
 
 
-def decode_sprite(mem: dict[int, int], addr: int, ntsc: bool = False) -> Image.Image:
+def decode_sprite(mem: dict[int, int], addr: int, ntsc: bool = True) -> Image.Image:
     """
     Decode one sprite from the given memory dict starting at addr.
     Returns an RGBA PIL Image.
@@ -300,28 +304,45 @@ def decode_sprite(mem: dict[int, int], addr: int, ntsc: bool = False) -> Image.I
 
     offset = addr + 2
     for row in range(height):
-        # Pixels are stored bottom-to-top in HGR (row 0 = bottom).
-        # We flip vertically so row 0 of our image is the top.
-        img_row = height - 1 - row
-        col = 0
+        # Source row 0 is the TOP of the sprite: the blitter walks the source image
+        # forward while DECREMENTING the bottom-up screen row counter
+        # (nextImageDestRow / dec ZP_RENDER_CURR_Y, choplifter.s:2070).
+        bits = []
         for byte_idx in range(stride):
             b = mem.get(offset + row * stride + byte_idx, 0)
-            palette_bit = (b >> 7) & 1
-            for bit in range(7):
-                if col >= width:
-                    break
-                pixel_on = (b >> bit) & 1
-                if pixel_on:
-                    if ntsc:
-                        parity = col % 2
-                        r, g, b_val = NTSC_PALETTE.get((palette_bit, parity), WHITE)
-                        # Adjacent "on" pixels → white (NTSC white burst)
-                        # Simplified: just use the colour map entry
-                        pixels[col, img_row] = (r, g, b_val, 255)
-                    else:
-                        pixels[col, img_row] = (255, 255, 255, 255)
-                # else: leave transparent
-                col += 1
+            # All 8 bits are pixels, MSB first (bit 7 = leftmost): the blitter
+            # discards left-clipped pixels with ASL (choplifter.s:1836).
+            for bit in range(7, -1, -1):
+                bits.append((b >> bit) & 1)
+        bits = bits[:width]
+
+        # NTSC artifact colour (composite monitor look). Choplifter's renderer never
+        # sets the HGR palette bit (no ORA #$80 in the blit path), so everything is
+        # palette 0: adjacent on-pixels fuse to WHITE; an isolated on-pixel shows as
+        # VIOLET on even columns and GREEN on odd columns. Alternating-pixel fills
+        # (houses, logo text) therefore render as solid colour fields — decoding
+        # them as 1-bit white produced the "checkerboard noise" seen in v0.1.
+        VIOLET = (0xC6, 0x30, 0xFF, 255)
+        GREEN  = (0x3D, 0xFF, 0x39, 255)
+        WHITE_PX = (255, 255, 255, 255)
+        for col in range(width):
+            if not bits[col]:
+                continue
+            left_on  = col > 0 and bits[col - 1]
+            right_on = col + 1 < width and bits[col + 1]
+            if ntsc is False:
+                pixels[col, row] = WHITE_PX                     # raw 1-bit (--no-ntsc)
+                continue
+            if left_on or right_on:
+                pixels[col, row] = WHITE_PX                     # white burst
+                continue
+            # Isolated pixel: the NTSC colour cycle smears it across a 2-px band
+            # (this is what turns alternating-column fills into SOLID colour fields).
+            colour = VIOLET if col % 2 == 0 else GREEN
+            pixels[col, row] = colour
+            for n in (col - 1, col + 1):
+                if 0 <= n < width and not bits[n] and pixels[n, row][3] == 0:
+                    pixels[n, row] = colour
 
     return img
 
@@ -336,7 +357,7 @@ def main():
     parser.add_argument("--gfxhi", default="CHOPGFXHI", help="Path to CHOPGFXHI binary (default: ./CHOPGFXHI)")
     parser.add_argument("--out",   default="sprites",   help="Output directory (default: ./sprites)")
     parser.add_argument("--scale", type=int, default=4, help="Integer upscale factor, 1–8 (default: 4)")
-    parser.add_argument("--ntsc",  action="store_true", help="Render approximate NTSC composite colours instead of white-on-transparent")
+    parser.add_argument("--no-ntsc", dest="ntsc", action="store_false", default=True, help="Raw 1-bit white-on-transparent instead of NTSC composite colours (default: NTSC)")
     args = parser.parse_args()
 
     gfx_path   = Path(args.gfx)
