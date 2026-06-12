@@ -21,10 +21,11 @@ func tick(frame_count: int) -> void:
 		_unload_one()
 	elif GameState.hostages_left > 0 and GameState.hostages_active < GameState.MAX_SPAWN_BATCH:
 		_spawn_field_hostage()
-	# When a landed (non-base) chopper is present, nudge field hostages into their run.
-	if _chopper.landed and not _chopper.landed_at_base:
-		for h in get_tree().get_nodes_in_group("hostages"):
-			h.on_chopper_landed(_chopper)
+	# Field hostages re-derive run-vs-wave EVERY tick from the chopper's state (the gate
+	# lives in Hostage.on_chopper_landed, mirroring updateHostagesPlayerAloft) — they stop
+	# and wave the moment the chopper lifts off, fills up, or sits at the base.
+	for h in get_tree().get_nodes_in_group("hostages"):
+		h.on_chopper_landed(_chopper)
 
 func _unload_one() -> void:
 	# HF6: disembark one carried hostage per cycle into a base-runner walking to the door.

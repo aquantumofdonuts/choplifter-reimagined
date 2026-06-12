@@ -72,6 +72,8 @@ var accely_index: int = GRAVITY_INDEX
 var target_turn_state: int = 0 # turn_state animates toward this (Task 9)
 var accelx: int = 0            # ZP_STICKX: joystick-X input, -5…+5; |accelx| indexes ACCEL_X_TABLE
 var turn_state: int = 0        # -5 (left side) … 0 (head-on) … +5 (right side); rotor facing
+var face_mode: int = 0         # CHOP_FACE: commanded facing — -1 left, 0 camera, +1 right.
+                               # Spawns camera-facing like the source sortie start.
 var logical_face: int = 1      # 1 = right, -1 = left (flips instantly on input)
 var over_base: bool = false    # set true while the chopper hitbox overlaps the Base Area2D
 var airborne: bool = false     # set by ground check (Task 13)
@@ -202,13 +204,12 @@ func _handle_input() -> void:
 	elif Input.is_action_just_pressed("face_camera"):
 		face_camera()
 
-	# Vertical: thrust up, descend (required to land — R3-C1), or gravity.
-	if Input.is_action_pressed("thrust_up"):
-		accely_index = FULL_THRUST_INDEX
-	elif Input.is_action_pressed("descend"):
-		accely_index = DESCEND_INDEX
-	else:
-		accely_index = GRAVITY_INDEX
+	# Vertical: proportional collective (source joystickYTable maps deflection to ACCELY
+	# index 0-15; choplifter.s:5630-5658). Action strength is analog on gamepad sticks and
+	# 0/1 on keys, so this single mapping gives: W/full-up → 15, S/full-down → 0 (R3-C1,
+	# required to land), neutral → 8 (gravity sink −2), and every analog stop in between.
+	var collective := Input.get_action_strength("thrust_up") - Input.get_action_strength("descend")
+	accely_index = clampi(roundi(7.5 + 7.5 * collective), 0, 15)
 
 	# Horizontal movement: ramp accelx toward ±5 while held, decay toward 0 when released.
 	# |accelx| indexes ACCEL_X_TABLE (0 = no input, 5 = full deflection).
@@ -218,6 +219,19 @@ func _handle_input() -> void:
 		accelx = maxi(accelx - 1, -5)
 	else:
 		accelx = signi(accelx) * maxi(absi(accelx) - 1, 0)
+
+	# Facing → turn target. Commanded side-facing goes to ±5; in camera mode the chopper
+	# LEANS with the stick (facingTurnTable[ACCELX+5] = ±1 at hard deflection, 0 otherwise;
+	# choplifter.s:1030 — table is sign-reversed there because the source stores accel
+	# inverted; ours is screen-signed).
+	if face_mode != 0:
+		target_turn_state = 5 * face_mode
+	elif accelx >= 4:
+		target_turn_state = 1
+	elif accelx <= -4:
+		target_turn_state = -1
+	else:
+		target_turn_state = 0
 
 	# Fire
 	if Input.is_action_just_pressed("fire") and can_fire():
@@ -243,14 +257,14 @@ func _fire_bullet() -> void:
 # a full -5→+5 turn takes 5 frames. logical_face flips instantly on input.
 func face_left() -> void:
 	logical_face = -1
-	target_turn_state = -5
+	face_mode = -1
 
 func face_right() -> void:
 	logical_face = 1
-	target_turn_state = 5
+	face_mode = 1
 
 func face_camera() -> void:
-	target_turn_state = 0
+	face_mode = 0
 
 func _advance_turn_state() -> void:
 	var dist := target_turn_state - turn_state

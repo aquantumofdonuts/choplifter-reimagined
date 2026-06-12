@@ -24,14 +24,15 @@ func _ready() -> void:
 	add_to_group("hostages")
 
 func on_chopper_landed(chopper: Chopper) -> void:
-	# Only field hostages react; ignore if chopper is at the base or airborne.
-	if state != State.WAVING:
+	# Field hostages re-decide EVERY tick (updateHostagesPlayerAloft, choplifter.s:3407-3415):
+	# run toward the chopper only while it is landed in the field with cabin space; the moment
+	# it lifts off / sits at the base / fills up, they stop and wave. (v0.1 round 4 fix — the
+	# old latched RUNNING state made hostages chase a flying chopper and pile into one clump.)
+	if state != State.WAVING and state != State.RUNNING:
 		return
-	if not chopper.landed or chopper.landed_at_base:
-		return
-	if GameState.hostages_loaded >= 16:   # full cabin: source gate at choplifter.s:3414 (cmp #$10)
-		return
-	state = State.RUNNING                 # any distance — source has no detect radius
+	var pickable := chopper.landed and not chopper.landed_at_base \
+		and GameState.hostages_loaded < 16   # full-cabin gate: cmp #$10, choplifter.s:3414
+	state = State.RUNNING if pickable else State.WAVING
 
 func _physics_process(_delta: float) -> void:
 	match state:
