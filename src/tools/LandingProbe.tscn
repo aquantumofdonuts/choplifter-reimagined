@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://landprobe00001"]
+
+[ext_resource type="Script" path="res://src/tools/LandingProbe.gd" id="1_lp"]
+
+[node name="LandingProbe" type="Node"]
+script = ExtResource("1_lp")

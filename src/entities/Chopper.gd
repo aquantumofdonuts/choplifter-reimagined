@@ -306,13 +306,14 @@ func _check_ground() -> void:
 				return
 			_settle()
 		else:
-			# Gentle approach: hover AT the ground line without latching landed. The source
-			# keeps the chopper out of the ground while hovering ("Keep chopper out of
-			# ground", choplifter.s:5299–5301) — without this floor the chopper drifted to
-			# −MAX_SINK and visibly parked below the ground line (v0.1 round 3 finding).
+			# Hover AT the ground line without latching landed. The source clamps POSITION
+			# ONLY ("Keep chopper out of ground", choplifter.s:5299–5301) — VY keeps its
+			# value. Zeroing VY here (the round-3 version) broke sideways landings: arriving
+			# with drift blocked the centered-stick gate, the wipe killed the descent
+			# velocity, and gravity's −2 could never re-reach MIN_VY −5 — the chopper then
+			# hovered forever unless the player pressed down AGAIN (v0.1 rounds 4-5 bug).
+			# With VY preserved, centering the stick within the decay window still lands.
 			pos_y = maxf(pos_y, 0.0)
-			if vel_y < 0:
-				vel_y = 0
 	else:
 		# Already grounded: lift off only when upward thrust beats the launch threshold.
 		if vy_h >= LAUNCHTHRESH_HI:

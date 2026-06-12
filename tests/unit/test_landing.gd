@@ -48,7 +48,23 @@ func test_gentle_hover_floors_at_ground_line():
 	chopper._check_ground()
 	assert_bool(chopper.landed).is_false()
 	assert_float(chopper.pos_y).is_equal(0.0)
-	assert_int(chopper.vel_y).is_equal(0)
+	# VY is PRESERVED while floored (source clamps position only) — zeroing it here made
+	# sideways approaches unlandable once the drift wiped the descent velocity (round 6 fix).
+	assert_int(chopper.vel_y).is_equal(-(2 << 8))
+
+func test_sideways_approach_lands_after_release():
+	# Round 6 regression gate: arrive at the ground with sideways drift (gate blocked),
+	# then center the stick — the preserved descent velocity must still register touchdown.
+	chopper.airborne = true
+	chopper.pos_y = -1.0
+	chopper.vel_y = -(10 << 8)
+	chopper.accelx = -5            # drifting: touchdown gate blocked this tick
+	chopper._check_ground()
+	assert_bool(chopper.landed).is_false()
+	chopper.accelx = 0             # stick centered next tick; VY survived the floor
+	chopper.pos_y = -0.5
+	chopper._check_ground()
+	assert_bool(chopper.landed).is_true()
 
 func test_base_landing_sets_landed_at_base():
 	chopper.airborne = true
