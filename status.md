@@ -121,7 +121,14 @@
   arrival (gate blocked) wiped descent velocity and gravity (−2) could never re-reach MIN_VY (−5):
   hover forever → 'press down again'. Source clamps POSITION ONLY; vel_y now preserved. Probe
   confirms touchdown on the release tick + hostages board with no extra input. Regression-tested.
-- Next step: **v0.1 Playability Check round 7** (manual), then Phase 13 (Tasks 25–28, Tier A)
+- **v0.1 round 7 (maintainer: 'revert to source, simple > complex'):** the accreted landing
+  model was a MISREADING — deleted wholesale and replaced with a 1:1 port of the source
+  structure. THE landing rule (handleGround $770d): ground contact + |VX| < CRASHSPEED + stick
+  centered = LANDED — no minimum descent velocity. Grounded position integrates only on launch
+  (VY ≥ +1) → no taxiing structurally. MIN_VY only drives the squish/grounding cycle.
+  landed_at_base = pad X window BASE_X+$0D..$3F (over_base Area2D plumbing removed). Spawn at
+  source $1240. bounceThrust/settle-goo omitted (ledgered Approximation). Probe-verified.
+- Next step: **v0.1 Playability Check round 8** (manual), then Phase 13 (Tasks 25–28, Tier A)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
