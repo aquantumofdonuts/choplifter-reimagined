@@ -52,7 +52,11 @@ static func src_to_px(src_x: float) -> float:
 const NUM_HOUSES: int = 4                # spawnHostages iterates cpx #$04 (choplifter.s:3776)
 const HOSTAGES_PER_HOUSE: int = 16       # 4 × 16 = 64 = TOTAL_HOSTAGES
 const MAX_ACTIVE_HOSTAGES: int = 16      # MAX_HOSTAGES hostageTable record count
-const MAX_ABOARD: int = 16               # HOSTAGES_LOADED cmp #$10 cap
+const MAX_ABOARD: int = 8                # DELIBERATE DEVIATION (maintainer, v0.1): source cap is
+                                         # 16 (HOSTAGES_LOADED cmp #$10, choplifter.s:3414/3510/
+                                         # 3536) — felt like too many in playtesting. 64 hostages
+                                         # = 8 trips instead of 4. Ledgered; restore 16 here to
+                                         # revert to source-exact.
 const MAX_SPAWN_BATCH: int = 5           # HOSTAGES_ACTIVE cmp #$05 spawn throttle
 # Source X anchors for the 4 houses: FARHOUSE_X + index*256 (high byte += index).
 # These are the house ANCHORS — the +$0A hostage-emerge offset is applied once, at spawn

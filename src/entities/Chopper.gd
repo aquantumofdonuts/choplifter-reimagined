@@ -196,13 +196,15 @@ func _handle_input() -> void:
 	if GameState.input_locked or dying:
 		return
 
-	# Facing (logical_face flips instantly; turn_state animates separately)
-	if Input.is_action_just_pressed("face_left"):
-		face_left()
-	elif Input.is_action_just_pressed("face_right"):
-		face_right()
-	elif Input.is_action_just_pressed("face_camera"):
-		face_camera()
+	# Facing (logical_face flips instantly; turn_state animates separately).
+	# Source: "Can't rotate when on the ground" (checkJoystick1, choplifter.s:906-908).
+	if airborne:
+		if Input.is_action_just_pressed("face_left"):
+			face_left()
+		elif Input.is_action_just_pressed("face_right"):
+			face_right()
+		elif Input.is_action_just_pressed("face_camera"):
+			face_camera()
 
 	# Vertical: proportional collective (source joystickYTable maps deflection to ACCELY
 	# index 0-15; choplifter.s:5630-5658). Action strength is analog on gamepad sticks and
@@ -211,14 +213,19 @@ func _handle_input() -> void:
 	var collective := Input.get_action_strength("thrust_up") - Input.get_action_strength("descend")
 	accely_index = clampi(roundi(7.5 + 7.5 * collective), 0, 15)
 
-	# Horizontal movement: ramp accelx toward ±5 while held, decay toward 0 when released.
-	# |accelx| indexes ACCEL_X_TABLE (0 = no input, 5 = full deflection).
-	if Input.is_action_pressed("move_right"):
+	# Horizontal movement: ramp accelx toward ±5 while held; SNAP to 0 on release (a real
+	# joystick re-centers within one source tick — the old gradual decay kept accelx nonzero
+	# for ~5 ticks after release, blocking the centered-stick touchdown gate and forcing the
+	# player to "press down again" to land; v0.1 round 5). Grounded chopper takes no X input
+	# (the source's grounded state has no taxiing; lift off first).
+	if landed:
+		accelx = 0
+	elif Input.is_action_pressed("move_right"):
 		accelx = mini(accelx + 1, 5)
 	elif Input.is_action_pressed("move_left"):
 		accelx = maxi(accelx - 1, -5)
 	else:
-		accelx = signi(accelx) * maxi(absi(accelx) - 1, 0)
+		accelx = 0
 
 	# Facing → turn target. Commanded side-facing goes to ±5; in camera mode the chopper
 	# LEANS with the stick (facingTurnTable[ACCELX+5] = ±1 at hard deflection, 0 otherwise;

@@ -15,7 +15,7 @@
 | Landing / crash / launch thresholds (touchdown gated on centered X stick) | Exact | choplifter.s:4792–4804, 5287–5331 | Task 13 |
 | Hostage topology (4 houses / 64 reservoir / 16 active) | Exact | choplifter.s:3742–3815 | Task 14 |
 | House choice (under-chopper preference + random-start ring scan) | Exact | choplifter.s:3756–3795 | Task 14 |
-| 16-aboard cap + "chopper full" run-back | Exact | choplifter.s:3509–3556 | Task 14 |
+| Aboard cap + "chopper full" run-back | **Deviation (maintainer decision)** | choplifter.s:3509–3556 (`cmp #$10` = 16) | Task 14 / v0.1 round 5 — source cap is 16; reduced to 8 (`GameState.MAX_ABOARD`) after playtesting ("seems like too many"). Run-back mechanic itself unchanged. Restore the constant to 16 for source-exact behavior |
 | Run-back / door walk-in (no rescue credit) | Approximation (documented) | choplifter.s:3460–3526 | Task 14 — source underflows `BASE_RUNNERS` and leaks `HOSTAGES_ACTIVE`; we keep the no-credit rule, fix the counter leaks |
 | Base-runner unload + `CURR_LEVEL`-on-unload (`CHOP_LOADED` batch) | Exact | choplifter.s:3789–3826 | Task 13/14 — rescues credited at UNLOAD, not at the door |
 | Enemy spawn selection (one per `$2F` tick; RNG gates `$28`/bit 7) | Exact | choplifter.s:4570–4618 | Task 16 |

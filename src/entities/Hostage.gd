@@ -31,7 +31,7 @@ func on_chopper_landed(chopper: Chopper) -> void:
 	if state != State.WAVING and state != State.RUNNING:
 		return
 	var pickable := chopper.landed and not chopper.landed_at_base \
-		and GameState.hostages_loaded < 16   # full-cabin gate: cmp #$10, choplifter.s:3414
+		and GameState.hostages_loaded < GameState.MAX_ABOARD   # full-cabin gate (choplifter.s:3414)
 	state = State.RUNNING if pickable else State.WAVING
 
 func _physics_process(_delta: float) -> void:

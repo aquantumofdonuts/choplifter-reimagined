@@ -25,9 +25,10 @@ func test_hostage_runs_when_landed_chopper_in_range():
 	assert_int(h.state).is_equal(Hostage.State.RUNNING)
 	h.queue_free(); chopper.queue_free()
 
-func test_board_respects_16_aboard_cap_runs_back_when_full():
+func test_board_respects_aboard_cap_runs_back_when_full():
 	# HF5: chopper full → hostage does NOT board; it turns back toward base.
-	GameState.hostages_loaded = 16
+	# (Cap is GameState.MAX_ABOARD — 8 by maintainer decision; source is 16.)
+	GameState.hostages_loaded = GameState.MAX_ABOARD
 	var h := _new_hostage(1000.0)
 	h.state = Hostage.State.RUNNING
 	var chopper: Chopper = preload("res://src/entities/Chopper.tscn").instantiate()
@@ -35,7 +36,7 @@ func test_board_respects_16_aboard_cap_runs_back_when_full():
 	chopper.pos_x = 992.0           # within boarding prox (8 units left)
 	h.check_boarding(chopper)
 	assert_int(h.state).is_not_equal(Hostage.State.RESCUED)
-	assert_int(GameState.hostages_loaded).is_equal(16)   # unchanged
+	assert_int(GameState.hostages_loaded).is_equal(GameState.MAX_ABOARD)   # unchanged
 	h.queue_free(); chopper.queue_free()
 
 func test_board_when_space_available():
