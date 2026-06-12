@@ -111,7 +111,12 @@
 - Known feel notes: keyboard cannot hover (neutral = source gravity sink −2; analog stick can);
   buildings/houses keep the mottled NTSC artifact texture (palette-0 white/violet/green — matches
   the Apple II composite look); mountains are sparse low ridges per renderMountains.
-- Next step: **v0.1 Playability Check round 5** (manual), then Phase 13 (Tasks 25–28, Tier A)
+- **v0.1 round 5:** grounded chopper now ignores X/facing input (source: no taxiing, no ground
+  turns); key release snaps accelx to 0 (joystick re-centers in one tick — the lingering decay
+  blocked the centered-stick touchdown gate, the real cause of 'press down again to board');
+  **aboard cap 16 → 8 (GameState.MAX_ABOARD)** — DELIBERATE maintainer deviation from source
+  cmp #$10, ledgered, one constant to revert.
+- Next step: **v0.1 Playability Check round 6** (manual), then Phase 13 (Tasks 25–28, Tier A)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
