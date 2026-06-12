@@ -95,7 +95,14 @@
   HUD icons 1:1, hitbox 34×12 to match the 35×13 sprite); chopper ceiling implemented from source
   (BOUNDS_TOP $70 − $07 ground offset = 105, VY zeroed — ledgered Exact). 16-aboard cap confirmed
   source-faithful to the maintainer.
-- Next step: **v0.1 Playability Check round 3** (manual), then Phase 13 (Tasks 25–28, Tier A)
+- **v0.1 round 3 (sprite decode):** the REAL distortion root cause was extract_sprites.py —
+  wrong format (assumed 7px screen bytes; actual sprites are 8px/byte MSB-first bitmaps, row 0
+  top) and missing NTSC artifact colour (isolated alternating pixels = violet/green fills, pairs
+  = white; Choplifter never sets the HGR palette bit → palette 0 only). Address table verified
+  against the $a000 master pointer tables — was already correct. Logo decodes to clean violet
+  CHOPLIFTER letters. Re-extraction is idempotent: `python3 src/tools/extract_sprites.py --gfx
+  docs/blondie-ChoplifterReverse/CHOPGFX --gfxhi .../CHOPGFXHI --out assets/graphics/mode1 --scale 1`.
+- Next step: **v0.1 Playability Check round 4** (manual), then Phase 13 (Tasks 25–28, Tier A)
 
 ## Key settled decisions
 - Renderer: **Compatibility** (required for Android + Web)
